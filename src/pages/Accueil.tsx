@@ -45,49 +45,49 @@ const QueueItem = React.memo(({ entry, index, onEdit, onDelete, onNext }: { entr
 
   return (
     <Card className="border-0 shadow-sm hover:shadow-md transition-shadow gpu">
-      <CardContent className="p-3 sm:p-4 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
-            <span className="text-xs sm:text-sm font-bold text-primary">{index + 1}</span>
+      <CardContent className="p-3 sm:p-4 lg:p-5 flex items-center justify-between gap-2 lg:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 min-w-0 flex-1">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-full bg-secondary flex items-center justify-center shrink-0">
+            <span className="text-xs sm:text-sm lg:text-base font-bold text-primary">{index + 1}</span>
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-semibold text-sm sm:text-base text-foreground">{entry.client_id}</span>
+              <span className="font-semibold text-sm sm:text-base lg:text-lg text-foreground">{entry.client_id}</span>
               {entry.patient_name && (
-                <span className="text-sm font-medium text-muted-foreground truncate max-w-[120px] sm:max-w-[200px]">
+                <span className="text-sm lg:text-base font-medium text-muted-foreground truncate max-w-[120px] sm:max-w-[200px] lg:max-w-[320px]">
                   · {entry.patient_name}
                 </span>
               )}
-              <Badge variant="outline" className={`${stateColors[entry.state]} text-xs px-1.5 py-0`}>
+              <Badge variant="outline" className={`${stateColors[entry.state]} text-xs lg:text-sm px-1.5 lg:px-2.5 py-0`}>
                 {stateLabels[entry.state]}
               </Badge>
             </div>
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-xs lg:text-sm text-muted-foreground truncate mt-0.5">
               equipe {entry.doctor?.name || '—'}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2 lg:gap-3 shrink-0">
+          <div className="flex items-center gap-1 lg:gap-2">
             {/* Call and SMS buttons removed as requested */}
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-primary"
+              className="h-8 w-8 lg:h-10 lg:w-10 text-muted-foreground hover:text-primary"
               onClick={() => onEdit(entry)}
               title="Modifier"
             >
-              <Pencil className="h-4 w-4" />
+              <Pencil className="h-4 w-4 lg:h-5 lg:w-5" />
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  className="h-8 w-8 lg:h-10 lg:w-10 text-muted-foreground hover:text-destructive"
                   title="Supprimer"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4 lg:h-5 lg:w-5" />
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -107,9 +107,9 @@ const QueueItem = React.memo(({ entry, index, onEdit, onDelete, onNext }: { entr
           <Button
             size="sm"
             onClick={() => onNext(entry)}
-            className="gap-1 shrink-0 h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm"
+            className="gap-1 shrink-0 h-8 sm:h-9 lg:h-11 px-2 sm:px-3 lg:px-5 text-xs sm:text-sm lg:text-base"
           >
-            <span className="hidden sm:inline">Suivant</span> <ChevronRight className="h-4 w-4" />
+            <span className="hidden sm:inline">Suivant</span> <ChevronRight className="h-4 w-4 lg:h-5 lg:w-5" />
           </Button>
         </div>
       </CardContent>
@@ -635,40 +635,40 @@ const Accueil = () => {
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col">
       {/* Header */}
-      <header className="flex items-center justify-between p-3 sm:p-4 border-b sticky top-0 bg-background z-10">
-        <div className="flex items-center gap-2.5">
-          <div className="p-1 rounded-lg bg-white shadow-lg shadow-primary/5 border border-primary/5 shrink-0 hidden sm:block">
-            <img src="/Dr hakim.png" alt="Logo" className="h-6 w-6 object-contain" />
+      <header className="flex items-center justify-between p-3 sm:p-4 lg:px-8 lg:py-4 border-b sticky top-0 bg-background z-10">
+        <div className="flex items-center gap-2.5 lg:gap-4">
+          <div className="p-1 lg:p-2 rounded-lg bg-white shadow-lg shadow-primary/5 border border-primary/5 shrink-0 hidden sm:block">
+            <img src="/Dr hakim.png" alt="Logo" className="h-6 w-6 lg:h-9 lg:w-9 object-contain" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tighter italic leading-none">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-primary tracking-tighter italic leading-none">
               PasseVite
             </h1>
-            <p className="text-[9px] text-muted-foreground truncate uppercase font-medium tracking-widest hidden sm:block">
+            <p className="text-[9px] lg:text-[11px] text-muted-foreground truncate uppercase font-medium tracking-widest hidden sm:block">
               Le soin qui passe vite
             </p>
           </div>
         </div>
-        <div className="flex gap-1.5 sm:gap-2 mx-auto">
+        <div className="flex gap-1.5 sm:gap-2 lg:gap-3 mx-auto">
           <Button onClick={async () => {
             await fetchTodayClients();
             setShowTodayModal(true);
-          }} variant="outline" size="sm" className="h-8 px-2 sm:px-3 text-[11px] font-black uppercase">Terminer</Button>
-          <Button asChild variant="secondary" size="sm" className="h-8 px-2 sm:px-3 text-[11px] font-black uppercase tracking-widest bg-primary/10 text-primary hover:bg-primary/20 border-0 rounded-full sm:rounded-md shadow-none">
+          }} variant="outline" size="sm" className="h-8 lg:h-10 px-2 sm:px-3 lg:px-5 text-[11px] lg:text-sm font-black uppercase">Terminer</Button>
+          <Button asChild variant="secondary" size="sm" className="h-8 lg:h-10 px-2 sm:px-3 lg:px-5 text-[11px] lg:text-sm font-black uppercase tracking-widest bg-primary/10 text-primary hover:bg-primary/20 border-0 rounded-full sm:rounded-md shadow-none">
             <Link to="/accueil/factures/ajouter">
-              <ShoppingCart className="h-3.5 w-3.5 sm:mr-1.5" />
+              <ShoppingCart className="h-3.5 w-3.5 lg:h-4 lg:w-4 sm:mr-1.5" />
               <span className="hidden sm:inline">Facture</span>
             </Link>
           </Button>
-          <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3 text-[11px] font-black uppercase tracking-widest bg-destructive/5 text-destructive border-destructive/20 hover:bg-destructive/10 rounded-full sm:rounded-md shadow-none" onClick={() => setShowExpenseModal(true)}>
-            <DollarSign className="h-3.5 w-3.5 sm:mr-1.5" />
+          <Button variant="outline" size="sm" className="h-8 lg:h-10 px-2 sm:px-3 lg:px-5 text-[11px] lg:text-sm font-black uppercase tracking-widest bg-destructive/5 text-destructive border-destructive/20 hover:bg-destructive/10 rounded-full sm:rounded-md shadow-none" onClick={() => setShowExpenseModal(true)}>
+            <DollarSign className="h-3.5 w-3.5 lg:h-4 lg:w-4 sm:mr-1.5" />
             <span className="hidden sm:inline">Dépense</span>
           </Button>
         </div>
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 shrink-0">
           <Link to="/rendezvous">
-            <Button variant="outline" size="sm" className="hidden sm:flex h-8 px-3 text-[11px] font-black uppercase tracking-widest">
-              <CalendarIcon className="h-3.5 w-3.5 mr-1.5" /> Rendez-vous
+            <Button variant="outline" size="sm" className="hidden sm:flex h-8 lg:h-10 px-3 lg:px-5 text-[11px] lg:text-sm font-black uppercase tracking-widest">
+              <CalendarIcon className="h-3.5 w-3.5 lg:h-4 lg:w-4 mr-1.5" /> Rendez-vous
             </Button>
             <Button variant="outline" size="icon" className="sm:hidden h-8 w-8 rounded-full">
               <CalendarIcon className="h-4 w-4" />
@@ -677,7 +677,7 @@ const Accueil = () => {
 
 
           {/* Session close removed */}
-          <Button variant="ghost" size="icon" onClick={signOut} className="h-8 w-8"><LogOut className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={signOut} className="h-8 w-8 lg:h-10 lg:w-10"><LogOut className="h-4 w-4 lg:h-5 lg:w-5" /></Button>
         </div>
       </header>
 
@@ -877,44 +877,24 @@ const Accueil = () => {
       </Dialog>
 
 
-      {/* Stats by Doctor - carousel with navigation */}
-      <div className="relative">
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 z-10 hidden sm:flex">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 bg-background/80 shadow-md rounded-full"
-            onClick={() => scrollDoctors('left')}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10 hidden sm:flex">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 bg-background/80 shadow-md rounded-full"
-            onClick={() => scrollDoctors('right')}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+      {/* Stats by Doctor */}
+      <div className="w-full flex justify-center lg:px-8">
         <div
           ref={doctorsScrollRef}
-          className="flex gap-2 p-3 sm:p-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory"
+          className="flex justify-center flex-wrap gap-2 lg:gap-4 p-3 sm:p-4 lg:py-5 overflow-x-auto scrollbar-hide"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {doctorStats.map(ds => {
             return (
               <Card
                 key={ds.id}
-                className="border-0 shadow-sm shrink-0 w-28 sm:w-40 snap-start cursor-pointer hover:shadow-md transition-shadow"
+                className="border-0 shadow-sm shrink-0 w-28 sm:w-40 lg:w-52 cursor-pointer hover:shadow-md transition-shadow"
                 onClick={() => setDoctorFilter(doctorFilter === ds.id ? 'all' : ds.id)}
               >
-                <CardContent className="p-3 sm:p-4 text-center">
-                  <p className="text-xs font-medium text-muted-foreground mb-1 truncate">{ds.name}</p>
-                  <p className="text-xl sm:text-2xl font-bold text-foreground">{ds.waitingCount}</p>
-                  <p className="text-xs text-muted-foreground">en attente</p>
+                <CardContent className="p-3 sm:p-4 lg:p-6 text-center">
+                  <p className="text-xs lg:text-sm font-medium text-muted-foreground mb-1 truncate">{ds.name}</p>
+                  <p className="text-xl sm:text-2xl lg:text-4xl font-bold text-foreground">{ds.waitingCount}</p>
+                  <p className="text-xs lg:text-sm text-muted-foreground mt-1">en attente</p>
                 </CardContent>
               </Card>
             );
@@ -924,23 +904,23 @@ const Accueil = () => {
 
       {/* In Cabinet Section */}
       {inCabinetEntries.length > 0 && (
-        <div className="p-3 sm:p-4 pb-0">
-          <h2 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
-            <UserCheck className="h-4 w-4 text-orange-500" />
+        <div className="p-3 sm:p-4 lg:px-8 lg:py-5 pb-0 w-full flex flex-col items-center">
+          <h2 className="text-sm lg:text-base font-semibold text-muted-foreground mb-2 lg:mb-3 flex items-center gap-2 w-full justify-center">
+            <UserCheck className="h-4 w-4 lg:h-5 lg:w-5 text-orange-500" />
             Au cabinet ({inCabinetEntries.length})
           </h2>
-          <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide">
+          <div className="flex justify-center flex-wrap w-full gap-2 lg:gap-4 overflow-x-auto pb-3 scrollbar-hide">
             {inCabinetEntries.map(entry => (
               <Card
                 key={entry.id}
-                className="border-orange-200 bg-orange-50 shrink-0 w-40 sm:w-48 cursor-pointer hover:shadow-md transition-shadow"
+                className="border-orange-200 bg-orange-50 shrink-0 w-40 sm:w-48 lg:w-64 cursor-pointer hover:shadow-md transition-shadow"
                 onClick={() => handleCompleteClick(entry)}
               >
-                <CardContent className="p-3 text-center">
-                  <p className="font-bold text-lg text-orange-700">{entry.client_id}</p>
-                  <p className="text-xs font-medium text-orange-800 truncate">{entry.patient_name || '—'}</p>
-                  <p className="text-xs text-orange-600 truncate">{entry.doctor?.name || '—'}</p>
-                  <p className="text-xs text-orange-500 mt-1">Cliquer pour finaliser</p>
+                <CardContent className="p-3 lg:p-5 text-center">
+                  <p className="font-bold text-lg lg:text-2xl text-orange-700">{entry.client_id}</p>
+                  <p className="text-xs lg:text-sm font-medium text-orange-800 truncate">{entry.patient_name || '—'}</p>
+                  <p className="text-xs lg:text-sm text-orange-600 truncate">{entry.doctor?.name || '—'}</p>
+                  <p className="text-xs lg:text-sm text-orange-500 mt-1">Cliquer pour finaliser</p>
                 </CardContent>
               </Card>
             ))}
@@ -949,11 +929,11 @@ const Accueil = () => {
       )}
 
       {/* Queue List */}
-      <div className="flex-1 p-3 sm:p-4 space-y-2 pb-24">
+      <div className="flex-1 p-3 sm:p-4 lg:px-8 lg:py-6 space-y-2 lg:space-y-3 pb-24 lg:max-w-5xl lg:w-full lg:mx-auto">
         {filtered.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <Users className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 opacity-30" />
-            <p>Aucun patient en attente</p>
+          <div className="text-center py-12 lg:py-20 text-muted-foreground">
+            <Users className="h-10 w-10 sm:h-12 sm:w-12 lg:h-16 lg:w-16 mx-auto mb-3 lg:mb-4 opacity-30" />
+            <p className="lg:text-lg">Aucun patient en attente</p>
           </div>
         ) : (
           filtered.map((entry, index) => (
@@ -970,22 +950,22 @@ const Accueil = () => {
       </div>
 
       {/* FAB to add client */}
-      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 flex flex-col gap-2 items-end">
+      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 lg:bottom-10 lg:right-10 flex flex-col gap-2 lg:gap-3 items-end">
         <Button
           size="lg"
           variant="outline"
-          className="h-12 w-12 sm:h-14 sm:w-14 rounded-full shadow-lg border-2 border-violet-200 bg-white hover:bg-violet-50 text-violet-600"
+          className="h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 rounded-full shadow-lg border-2 border-violet-200 bg-white hover:bg-violet-50 text-violet-600"
           onClick={() => setShowQrScanner(true)}
           title="Scanner QR"
         >
-          <QrCode className="h-5 w-5 sm:h-6 sm:w-6" />
+          <QrCode className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
         </Button>
         <Button
           size="lg"
-          className="h-12 w-12 sm:h-14 sm:w-14 rounded-full shadow-lg"
+          className="h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16 rounded-full shadow-lg"
           onClick={() => setShowAddModal(true)}
         >
-          <Plus className="h-5 w-5 sm:h-6 sm:w-6" />
+          <Plus className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
         </Button>
       </div>
 
