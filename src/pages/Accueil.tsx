@@ -69,16 +69,7 @@ const QueueItem = React.memo(({ entry, index, onEdit, onDelete, onNext }: { entr
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <div className="flex items-center gap-1">
-            <a href={`tel:${entry.phone}`} className="text-primary flex items-center justify-center p-1.5 hover:bg-secondary/50 rounded-full transition-colors" title="Appeler">
-              <Phone className="h-5 w-5" />
-            </a>
-            <a
-              href={`sms:${entry.phone}?body=${encodeURIComponent("Clinique PasseVite : votre tour arrive bientôt.\nVous pouvez suivre le nombre de patients avant vous ici :\nhttps://passevite.vercel.app/client\nدوركم سيأتي قريبًا.")}`}
-              className="text-primary flex items-center justify-center p-1.5 hover:bg-secondary/50 rounded-full transition-colors"
-              title="Envoyer un SMS"
-            >
-              <MessageCircle className="h-5 w-5" />
-            </a>
+            {/* Call and SMS buttons removed as requested */}
             <Button
               variant="ghost"
               size="icon"
@@ -245,7 +236,7 @@ const Accueil = () => {
 
   const [hasNextAppt, setHasNextAppt] = useState(false);
   const [nextApptDate, setNextApptDate] = useState<Date | undefined>(undefined);
-  const [nextApptTime, setNextApptTime] = useState('09:00');
+  const [nextApptTime, setNextApptTime] = useState('08:00');
   const [nextApptDoctorId, setNextApptDoctorId] = useState('');
   const [nextApptNote, setNextApptNote] = useState('');
 
@@ -1375,7 +1366,7 @@ const Accueil = () => {
               className="h-14 rounded-2xl bg-[#25D366] hover:bg-[#128C7E] text-white border-0 shadow-md font-bold text-md gap-3"
               onClick={() => {
                 if (!lastCompletedPatient) return;
-                const msg = `Bonjour ${lastCompletedPatient.name}, avez-vous aimé votre traitement "${lastCompletedPatient.treatment}" à la clinique PasseVite ?\n\nLaissez-nous votre avis ici : https://passevite.vercel.app/review?phone=${lastCompletedPatient.phone}`;
+                const msg = `Bonjour ${lastCompletedPatient.name}, avez-vous aimé votre traitement "${lastCompletedPatient.treatment}" à la CD Dental clinic ?\n\nLaissez-nous votre avis ici : https://passevite-hakim.vercel.app/review?phone=${lastCompletedPatient.phone}`;
                 // Clean phone number (remove leading zero and add +213 for Algeria)
                 let cleanPhone = lastCompletedPatient.phone.replace(/\s+/g, '');
                 if (cleanPhone.startsWith('0')) cleanPhone = '213' + cleanPhone.substring(1);
@@ -1396,7 +1387,7 @@ const Accueil = () => {
               className="h-14 rounded-2xl border-2 hover:bg-secondary/50 font-bold text-md gap-3"
               onClick={() => {
                 if (!lastCompletedPatient) return;
-                const msg = `Bonjour ${lastCompletedPatient.name}, avez-vous aimé votre traitement "${lastCompletedPatient.treatment}" à la clinique PasseVite ?\n\nLaissez-nous votre avis ici : https://passevite.vercel.app/review?phone=${lastCompletedPatient.phone}`;
+                const msg = `Bonjour ${lastCompletedPatient.name}, avez-vous aimé votre traitement "${lastCompletedPatient.treatment}" à la CD Dental clinic ?\n\nLaissez-nous votre avis ici : https://passevite-hakim.vercel.app/review?phone=${lastCompletedPatient.phone}`;
                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
                 const smsLink = `sms:${lastCompletedPatient.phone}${isIOS ? '&' : '?'}body=${encodeURIComponent(msg)}`;
                 window.location.href = smsLink;

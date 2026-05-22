@@ -298,17 +298,17 @@ const MedecinDashboard = () => {
                                     </div>
 
                                     <div className="p-4 sm:p-8">
-                                        <ScrollArea className="h-[600px] pr-4">
+                                        <ScrollArea className="h-[750px] pr-4">
                                             <div className="grid grid-cols-[60px_1fr] gap-6">
                                                 {/* Time labels */}
                                                 <div className="space-y-[80px] pt-10 text-[10px] font-black text-slate-300 text-right pr-4 border-r border-slate-100">
-                                                    {['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'].map(t => (
+                                                    {['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'].map(t => (
                                                         <div key={t} className="h-0 flex items-center justify-end">{t}</div>
                                                     ))}
                                                 </div>
 
                                                 {/* Single Column for current Doctor */}
-                                                <div className="relative bg-slate-50/30 rounded-3xl min-h-[1000px] border border-dashed border-slate-200">
+                                                <div className="relative bg-slate-50/30 rounded-3xl min-h-[1300px] border border-dashed border-slate-200">
                                                     <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md p-4 border-b text-center font-black text-xs text-primary uppercase tracking-[0.2em] rounded-t-3xl">
                                                         Planning {doctorInfo?.name}
                                                     </div>

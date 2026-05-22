@@ -91,7 +91,7 @@ const Rendezvous = () => {
 
     // Form state for new appointment
     const [newApptDate, setNewApptDate] = useState<Date | undefined>(new Date());
-    const [newApptTime, setNewApptTime] = useState('09:00');
+    const [newApptTime, setNewApptTime] = useState('08:00');
     const [newApptDoctor, setNewApptDoctor] = useState('');
     const [newApptNotes, setNewApptNotes] = useState('');
     const [editingApptId, setEditingApptId] = useState<string | null>(null);
@@ -115,7 +115,7 @@ const Rendezvous = () => {
         notes: '',
         state: 'N',
         apptDate: new Date(),
-        apptTime: '09:00',
+        apptTime: '08:00',
         apptDoctor: '',
         apptNotes: ''
     });
@@ -538,12 +538,12 @@ const Rendezvous = () => {
     };
 
     const handleSendSMS = (phone: string, name: string, time: string) => {
-        const message = `Clinique PasseVite : votre rendez-vous avec notre équipe est dans 24h. Merci de confirmer votre présence.`;
+        const message = `CD clinique dentaire : votre rendez-vous avec notre équipe est dans 24h. Merci de confirmer votre présence.`;
         window.open(`sms:${phone}?body=${encodeURIComponent(message)}`, '_blank');
     };
 
     const handleSendWhatsApp = (phone: string, name: string, time: string) => {
-        const message = `Clinique PasseVite : votre rendez-vous avec notre équipe est dans 24h. Merci de confirmer votre présence.`;
+        const message = `CD clinique dentaire : votre rendez-vous avec notre équipe est dans 24h. Merci de confirmer votre présence.`;
         const normalizePhoneForWhatsApp = (p: string) => {
             let digits = (p || '').replace(/\D/g, '');
             if (!digits) return '';
@@ -590,8 +590,8 @@ const Rendezvous = () => {
         const h = parseInt(hours);
         const m = parseInt(minutes);
 
-        if (h < 8 || h > 18 || (h === 18 && m > 0)) {
-            toast.error('Les horaires sont limités de 08:00 à 18:00');
+        if (h < 8 || h > 22 || (h === 22 && m > 0)) {
+            toast.error('Les horaires sont limités de 08:00 à 22:00');
             return;
         }
 
@@ -1415,12 +1415,12 @@ const Rendezvous = () => {
                                     </div>
 
                                     <div className="p-0 sm:p-2">
-                                        <ScrollArea className="h-[650px] sm:h-[600px] px-2 sm:px-4">
-                                            <div className="relative min-h-[1050px] min-w-0">
+                                        <ScrollArea className="h-[650px] sm:h-[750px] px-2 sm:px-4">
+                                            <div className="relative min-h-[1350px] min-w-0">
 
                                                 {/* Time Background Grid Lines */}
                                                 <div className="absolute inset-0 pt-10 pointer-events-none">
-                                                    {['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'].map((t, idx) => (
+                                                    {['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'].map((t, idx) => (
                                                         <div
                                                             key={t}
                                                             className="absolute left-0 w-full border-t border-muted/30 flex items-start"
@@ -1452,7 +1452,7 @@ const Rendezvous = () => {
                                                     {doctors
                                                         .filter(d => selectedDoctorMobile === 'all' || d.id === selectedDoctorMobile)
                                                         .map(doctor => (
-                                                            <div key={doctor.id} className="relative min-h-[1000px] rounded-2xl bg-muted/5 border border-primary/5 overflow-hidden group/col">
+                                                            <div key={doctor.id} className="relative min-h-[1300px] rounded-2xl bg-muted/5 border border-primary/5 overflow-hidden group/col">
                                                                 {/* Column Sticky Header */}
                                                                 <div className="sticky top-0 z-10 bg-white/80 dark:bg-black/40 backdrop-blur-md p-3 border-b border-primary/5 text-center group-hover/col:bg-primary/5 transition-colors">
                                                                     <p className="text-[10px] text-primary font-black uppercase tracking-[0.2em] mb-0.5 opacity-60">Cabinet</p>
