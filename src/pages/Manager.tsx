@@ -160,12 +160,7 @@ const Manager = () => {
         </div>
         <div className="flex items-center gap-2">
           <FeedbackStats />
-          <Button asChild variant="ghost" size="sm" className="h-9">
-            <Link to="/appointment">
-              <Calendar className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">Rendez-vous</span>
-            </Link>
-          </Button>
+
           <Button asChild variant="ghost" size="sm" className="h-9">
             <Link to="/manager/depenses">
               <DollarSign className="h-4 w-4 mr-1" />

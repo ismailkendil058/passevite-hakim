@@ -138,7 +138,7 @@ const AjouterFacture = () => {
                 </Button>
             </header>
 
-            <div className="p-3 sm:p-4 space-y-3 sm:space-y-4 max-w-5xl mx-auto w-full flex-1 pb-20">
+            <div className="p-3 sm:p-4 space-y-3 sm:space-y-4 w-full flex-1 pb-20">
                 {/* Info Facture Card - Manager Style */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1">
