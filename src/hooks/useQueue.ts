@@ -331,7 +331,13 @@ export function useQueue() {
   };
 
   const updateClient = async (entryId: string, updates: { phone?: string; state?: 'U' | 'N' | 'R'; doctor_id?: string; patient_name?: string }) => {
-    const { error } = await supabase.from('queue_entries').update(updates).eq('id', entryId);
+    // Ensure we handle potential column name differences (patient_name vs client_name)
+    const payload: any = { ...updates };
+    if (updates.patient_name) {
+      payload.client_name = updates.patient_name;
+    }
+
+    const { error } = await supabase.from('queue_entries').update(payload).eq('id', entryId);
     if (!error) {
       fetchEntries();
       fetchInCabinetEntries();

@@ -690,78 +690,10 @@ const MedecinDashboard = () => {
 
                     {/* ORDONNANCES CONTENT */}
                     <TabsContent value="ordonnances" className="mt-6 animate-in fade-in slide-in-from-bottom-2">
-                        <div className="flex flex-col gap-6">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                <h1 className="text-2xl font-black italic text-slate-800">Gestion des Ordonnances</h1>
-                                <Button onClick={() => setShowOrdonnanceModal(true)} className="rounded-xl h-11 px-6 shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90">
-                                    <Plus className="h-4 w-4 mr-2" /> Nouvelle Ordonnance
-                                </Button>
-                            </div>
-
-                            <Card className="border-none shadow-premium overflow-hidden bg-gradient-to-br from-white to-slate-50">
-                                <CardHeader className="p-6 border-b bg-muted/10">
-                                    <div className="flex flex-wrap gap-4 items-center">
-                                        <div className="relative flex-1 min-w-[200px]">
-                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                                            <Input
-                                                placeholder="Rechercher par patient ou médicament..."
-                                                value={searchOrdonnance}
-                                                onChange={e => setSearchOrdonnance(e.target.value)}
-                                                className="pl-10 h-11 border-slate-200 rounded-xl focus:ring-primary/20"
-                                            />
-                                        </div>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="p-0">
-                                    <Table>
-                                        <TableHeader className="bg-muted/30">
-                                            <TableRow>
-                                                <TableHead className="font-bold text-xs">Patient</TableHead>
-                                                <TableHead className="font-bold text-xs">Date</TableHead>
-                                                <TableHead className="font-bold text-xs">Médicaments</TableHead>
-                                                <TableHead className="text-right font-bold text-xs">Action</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {filteredPrescriptions.map(rx => (
-                                                <TableRow key={rx.id} className="hover:bg-slate-50/80 transition-colors">
-                                                    <TableCell className="font-bold">{rx.patient_name}</TableCell>
-                                                    <TableCell className="text-slate-500 text-sm">
-                                                        {format(new Date(rx.prescription_date), 'dd MMM yyyy', { locale: fr })}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex flex-wrap gap-1">
-                                                            {rx.medications?.slice(0, 2).map((med: any, i: number) => (
-                                                                <Badge key={i} variant="secondary" className="bg-slate-100 text-[10px] font-medium border-0">
-                                                                    {med.name}
-                                                                </Badge>
-                                                            ))}
-                                                            {rx.medications?.length > 2 && <span className="text-[10px] text-slate-400">+{rx.medications.length - 2}</span>}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="text-right flex items-center justify-end gap-2">
-                                                        <Button variant="ghost" size="sm" onClick={() => handlePrintOrdonnance(rx)} className="rounded-lg h-8 w-8 text-primary hover:bg-primary/5">
-                                                            <Printer className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button variant="ghost" size="sm" onClick={() => {
-                                                            setOrdonnanceFormData({
-                                                                patient_name: rx.patient_name,
-                                                                age: rx.age?.toString() || '',
-                                                                date: rx.prescription_date,
-                                                                medications: rx.medications,
-                                                                notes: rx.notes || ''
-                                                            });
-                                                            setShowOrdonnanceModal(true);
-                                                        }} className="rounded-lg h-8 w-8 text-slate-400 hover:bg-slate-50">
-                                                            <Edit3 className="h-4 w-4" />
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </CardContent>
-                            </Card>
+                        <div className="flex flex-col items-center justify-center py-20 bg-muted/10 rounded-3xl border-2 border-dashed border-muted">
+                            <FileText className="h-16 w-16 text-muted-foreground/30 mb-4" />
+                            <h2 className="text-xl font-bold text-muted-foreground">Pas encore prêt</h2>
+                            <p className="text-sm text-muted-foreground/60 font-medium">Cette section est en cours de développement.</p>
                         </div>
                     </TabsContent>
 
