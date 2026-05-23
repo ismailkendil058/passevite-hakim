@@ -69,25 +69,35 @@ const QueueItem = React.memo(({ entry, index, onEdit, onDelete, onNext }: { entr
         </div>
         <div className="flex items-center gap-2 lg:gap-3 shrink-0">
           <div className="flex items-center gap-1 lg:gap-2">
-            {/* Call and SMS buttons removed as requested */}
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 lg:h-10 lg:w-10 text-muted-foreground hover:text-primary"
+              className="h-8 w-8 lg:h-12 lg:w-12 text-muted-foreground hover:text-green-600"
+              asChild
+              title="Appeler"
+            >
+              <a href={`tel:${entry.phone}`}>
+                <Phone className="h-4 w-4 lg:h-6 lg:w-6" />
+              </a>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 lg:h-12 lg:w-12 text-muted-foreground hover:text-primary"
               onClick={() => onEdit(entry)}
               title="Modifier"
             >
-              <Pencil className="h-4 w-4 lg:h-5 lg:w-5" />
+              <Pencil className="h-4 w-4 lg:h-6 lg:w-6" />
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 lg:h-10 lg:w-10 text-muted-foreground hover:text-destructive"
+                  className="h-8 w-8 lg:h-12 lg:w-12 text-muted-foreground hover:text-destructive"
                   title="Supprimer"
                 >
-                  <Trash2 className="h-4 w-4 lg:h-5 lg:w-5" />
+                  <Trash2 className="h-4 w-4 lg:h-6 lg:w-6" />
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>

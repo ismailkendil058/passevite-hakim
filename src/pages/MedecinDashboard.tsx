@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
-import { cn } from '@/lib/utils';
+import { cn, getPersistentAuth } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
@@ -59,7 +59,7 @@ const MedecinDashboard = () => {
     const [doctorInfo, setDoctorInfo] = useState<{ id: string, name: string } | null>(null);
 
     useEffect(() => {
-        const authData = localStorage.getItem('doctor_auth');
+        const authData = getPersistentAuth('doctor_auth');
         if (authData) {
             setDoctorInfo(JSON.parse(authData));
         } else {

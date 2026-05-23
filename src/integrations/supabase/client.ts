@@ -33,31 +33,25 @@ const safeStorage = {
   },
 };
 
-// Force clear any cached Supabase auth tokens that might cause 401 Unauthorized errors
-if (typeof globalThis !== 'undefined' && globalThis.localStorage) {
-  try {
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
-        keysToRemove.push(key);
-      }
+// Supabase client instance
+if (typeof window !== 'undefined') {
+  const currentProjectRef = 'gfvbyyjmnuugrdonwpje';
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('sb-') && !key.includes(currentProjectRef)) {
+      localStorage.removeItem(key);
     }
-    keysToRemove.forEach(key => localStorage.removeItem(key));
-  } catch (err) {
-    console.error('Could not clear old supabase tokens', err);
-  }
+  });
 }
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: safeStorage,
-    persistSession: false,
-    autoRefreshToken: false,
+    persistSession: true,
+    autoRefreshToken: true,
   },
   global: {
     headers: {
-      Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
-    }
-  }
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+    },
+  },
 });

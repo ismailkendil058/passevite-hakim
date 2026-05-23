@@ -1,5 +1,6 @@
 import { useState, useEffect, createContext, useContext, ReactNode, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getPersistentAuth, setPersistentAuth, clearPersistentAuth } from '@/lib/utils';
 
 interface AuthUser {
   id: string;
@@ -23,8 +24,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check localStorage for a manual session
-    const savedUser = localStorage.getItem('passevite_user');
+    // Check cookies/localStorage for a manual session
+    const savedUser = getPersistentAuth('passevite_user');
     if (savedUser) {
       try {
         const parsed = JSON.parse(savedUser);
@@ -58,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: data.role
       };
 
-      localStorage.setItem('passevite_user', JSON.stringify(mockUser));
+      setPersistentAuth('passevite_user', JSON.stringify(mockUser));
       setUser(mockUser);
       setUserRole(data.role);
 
@@ -69,8 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    localStorage.removeItem('passevite_user');
-    localStorage.removeItem('doctor_auth');
+    clearPersistentAuth('passevite_user');
+    clearPersistentAuth('doctor_auth');
     setUser(null);
     setUserRole(null);
   };

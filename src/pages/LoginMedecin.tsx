@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Users, ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { setPersistentAuth } from '@/lib/utils';
 
 const LoginMedecin = () => {
     const [selectedDoctorId, setSelectedDoctorId] = useState('');
@@ -46,7 +47,7 @@ const LoginMedecin = () => {
             return;
         }
 
-        localStorage.setItem('doctor_auth', JSON.stringify({
+        setPersistentAuth('doctor_auth', JSON.stringify({
             id: matchedDoctor.id,
             name: matchedDoctor.name,
             role: 'doctor'
