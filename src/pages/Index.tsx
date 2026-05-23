@@ -21,13 +21,13 @@ const Index = () => {
 
       <div className="text-center mb-16 lg:mb-24 relative z-10 animate-fade-in gpu">
         <div className="inline-block mb-6 lg:mb-10 p-3 lg:p-5 rounded-[2rem] bg-white shadow-2xl shadow-primary/10 animate-float gpu border border-primary/5">
-          <img src="/Dr hakim.png" alt="PasseVite Logo" className="h-14 w-14 lg:h-28 lg:w-28 object-contain" />
+          <img src="/Dr hakim.png" alt="CD Dental Clinic Logo" className="h-14 w-14 lg:h-28 lg:w-28 object-contain" />
         </div>
         <h1 className="text-6xl lg:text-[10rem] font-black text-primary tracking-tighter italic leading-none">
-          PasseVite
+          CD Dental Clinic
         </h1>
         <p className="text-[10px] lg:text-xl tracking-[0.3em] lg:tracking-[0.6em] text-muted-foreground mt-4 lg:mt-8 font-bold uppercase opacity-60">
-          Le soin qui passe vite
+          passevite
         </p>
         <div className="h-1.5 w-16 lg:w-32 bg-primary/20 mx-auto mt-10 lg:mt-16 rounded-full" />
       </div>
@@ -63,7 +63,7 @@ const Index = () => {
         className="mt-12 text-[8px] sm:text-[10px] text-muted-foreground/50 uppercase tracking-widest sm:tracking-[0.2em] relative z-10 animate-fade-in text-center px-4"
         style={{ animationDelay: '1s' }}
       >
-        &copy; {new Date().getFullYear()} Le soin qui passe vite &bull; Excellence en Soins
+        &copy; {new Date().getFullYear()} passevite &bull; Excellence en Soins
       </p>
     </div>
   );

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -16,15 +16,40 @@ import {
     PieChart, DollarSign, Activity, FileDown, Edit3,
     X, Printer, ClipboardList, CheckCircle2, ChevronRight,
     LayoutDashboard, MapPin, Phone, ArrowUpRight, User, Trash2,
-    Calendar as CalIcon, MessageSquare, XCircle
+    Calendar as CalIcon, MessageSquare, XCircle, FlaskConical, Pencil, CreditCard, Wallet, ChevronLeft
 } from 'lucide-react';
-import { format, parseISO, startOfToday, endOfToday, startOfDay } from 'date-fns';
+import { format, parseISO, startOfToday, endOfToday, startOfDay, startOfMonth, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
+interface LaboOrder {
+    id: string;
+    date: string;
+    nom_prenom: string;
+    type_prothese: string;
+    teinte: string;
+    laboratoire: string;
+    n_fiche: string;
+    statut: 'En cours' | 'Au labo' | 'Livré' | 'Problème';
+    devis: number;
+    versement: number;
+    reste: number;
+    telephone: string;
+    observation: string;
+    doctor_id: string;
+    created_at: string;
+}
+
+const TYPE_SUGGESTIONS = ['B ceramique', 'Zirconne', 'Résine', 'Bridge', '4 éléments'];
+const TEINTE_OPTIONS = ['A1', 'A2', 'A3', 'A3.5', 'A4', 'B1', 'B2', 'B3', 'B4', 'C1', 'D2'];
+const STATUS_OPTIONS = ['En cours', 'Au labo', 'Livré', 'Problème'];
+const DEFAULT_LABOS = ['NewSmile', 'MEDDOUR', 'Youcef', 'new smille'];
 
 const MedecinDashboard = () => {
     const navigate = useNavigate();
@@ -66,6 +91,37 @@ const MedecinDashboard = () => {
     const [selectedPatient, setSelectedPatient] = useState<any>(null);
     const [isPatientDialogOpen, setIsPatientDialogOpen] = useState(false);
     const [viewingNote, setViewingNote] = useState<string | null>(null);
+
+    // LABO STATE
+    const [orders, setOrders] = useState<LaboOrder[]>([]);
+    const [laboLoading, setLaboLoading] = useState(true);
+    const [laboSearchQuery, setLaboSearchQuery] = useState('');
+    const [laboStatusFilter, setLaboStatusFilter] = useState('Tous');
+    const [dateFrom, setDateFrom] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+    const [dateTo, setDateTo] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+    const [showLaboAddModal, setShowLaboAddModal] = useState(false);
+    const [showLaboPaymentModal, setShowLaboPaymentModal] = useState(false);
+    const [editingLaboId, setEditingLaboId] = useState<string | null>(null);
+    const [customLabo, setCustomLabo] = useState(false);
+    const [laboFormData, setLaboFormData] = useState<Partial<LaboOrder>>({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        statut: 'En cours',
+        devis: 0,
+        versement: 0
+    });
+    const [laboPaymentAmount, setLaboPaymentAmount] = useState('');
+    const [laboPaymentOrder, setLaboPaymentOrder] = useState<LaboOrder | null>(null);
+
+    // ORDONNANCE MODAL STATE
+    const [showOrdonnanceModal, setShowOrdonnanceModal] = useState(false);
+    const [ordonnanceFormData, setOrdonnanceFormData] = useState({
+        patient_name: '',
+        age: '',
+        date: format(new Date(), 'yyyy-MM-dd'),
+        medications: [{ name: '', dosage: '', duration: '', instructions: '' }],
+        notes: ''
+    });
+    const [savingOrdonnance, setSavingOrdonnance] = useState(false);
 
 
     // Fetch Patient History (Appointments & Ordonnances)
@@ -119,6 +175,413 @@ const MedecinDashboard = () => {
             fetchDashboardData();
         }
     }, [doctorInfo]);
+
+    const handleSaveOrdonnance = async () => {
+        if (!doctorInfo) return;
+        if (!ordonnanceFormData.patient_name || ordonnanceFormData.medications.some(m => !m.name)) {
+            toast.error('Veuillez remplir au moins le nom du patient et un médicament');
+            return;
+        }
+
+        setSavingOrdonnance(true);
+        try {
+            const { error } = await supabase.from('prescriptions').insert({
+                doctor_id: doctorInfo.id,
+                patient_name: ordonnanceFormData.patient_name,
+                age: ordonnanceFormData.age ? parseInt(ordonnanceFormData.age) : null,
+                prescription_date: ordonnanceFormData.date,
+                medications: ordonnanceFormData.medications,
+                notes: ordonnanceFormData.notes
+            });
+
+            if (error) throw error;
+
+            toast.success('Ordonnance créée avec succès');
+            setShowOrdonnanceModal(false);
+            setOrdonnanceFormData({
+                patient_name: '',
+                age: '',
+                date: format(new Date(), 'yyyy-MM-dd'),
+                medications: [{ name: '', dosage: '', duration: '', instructions: '' }],
+                notes: ''
+            });
+            fetchDashboardData();
+        } catch (err) {
+            console.error(err);
+            toast.error('Erreur lors de la création');
+        } finally {
+            setSavingOrdonnance(false);
+        }
+    };
+
+    const addMedication = () => {
+        setOrdonnanceFormData({
+            ...ordonnanceFormData,
+            medications: [...ordonnanceFormData.medications, { name: '', dosage: '', duration: '', instructions: '' }]
+        });
+    };
+
+    const removeMedication = (index: number) => {
+        if (ordonnanceFormData.medications.length <= 1) return;
+        const newMeds = [...ordonnanceFormData.medications];
+        newMeds.splice(index, 1);
+        setOrdonnanceFormData({ ...ordonnanceFormData, medications: newMeds });
+    };
+
+    const updateMedication = (index: number, field: string, value: string) => {
+        const newMeds = [...ordonnanceFormData.medications];
+        // @ts-ignore
+        newMeds[index][field] = value;
+        setOrdonnanceFormData({ ...ordonnanceFormData, medications: newMeds });
+    };
+
+    const handlePrintOrdonnance = (rx: any) => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const medsHtml = rx.medications.map((m: any) => `
+            <div style="margin-bottom: 30px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                    <div style="font-weight: 900; font-size: 28px; color: #0f172a; text-transform: uppercase;">${m.name}</div>
+                    <div style="font-weight: 700; font-size: 20px; color: #334155;">${m.dosage}</div>
+                </div>
+                <div style="font-size: 18px; color: #64748b; margin-top: 8px; font-weight: 500;">
+                    ${m.instructions ? `<span style="font-style: italic;">${m.instructions}</span>` : ''}
+                    ${m.duration ? `<span style="margin-left: 20px; border-left: 2px solid #e2e8f0; padding-left: 20px;">Pendant ${m.duration}</span>` : ''}
+                </div>
+            </div>
+        `).join('');
+
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Ordonnance - ${rx.patient_name}</title>
+                    <style>
+                        @page { 
+                            size: A3 portrait; 
+                            margin: 2cm; 
+                        }
+                        body { 
+                            font-family: 'Inter', system-ui, sans-serif; 
+                            margin: 0; 
+                            padding: 0; 
+                            color: #1a202c; 
+                            background: white;
+                        }
+                        .container { 
+                            max-width: 1000px; 
+                            margin: 0 auto; 
+                            padding: 50px;
+                        }
+                        .header { 
+                            text-align: center; 
+                            margin-bottom: 80px; 
+                            border-bottom: 4px solid #3b82f6; 
+                            padding-bottom: 30px; 
+                        }
+                        .clinic-name { font-size: 48px; font-weight: 900; color: #1e40af; margin: 0; }
+                        .doctor-name { font-size: 24px; font-weight: 700; color: #64748b; margin-top: 10px; }
+                        .info-grid { 
+                            display: grid; 
+                            grid-template-cols: 1fr 1fr; 
+                            gap: 30px; 
+                            margin-bottom: 60px; 
+                            font-size: 20px;
+                        }
+                        .prescription-title { 
+                            font-size: 40px; 
+                            font-weight: 900; 
+                            text-align: center; 
+                            margin-bottom: 60px; 
+                            text-transform: uppercase; 
+                            letter-spacing: 5px;
+                            color: #3b82f6;
+                        }
+                        .medications { margin-bottom: 100px; }
+                        .footer { 
+                            text-align: center; 
+                            margin-top: 100px; 
+                            font-size: 14px; 
+                            color: #94a3b8; 
+                            border-top: 1px solid #e2e8f0; 
+                            padding-top: 20px; 
+                        }
+                        .signature {
+                             text-align: right;
+                             margin-top: 50px;
+                             font-weight: bold;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1 class="clinic-name">CD DENTAL CLINIC</h1>
+                            <div class="doctor-name">Dr. ${doctorInfo?.name || ''}</div>
+                            <div style="font-size: 16px; color: #94a3b8; margin-top: 10px;">Chirurgien Dentiste</div>
+                        </div>
+                        
+                        <div class="info-grid">
+                            <div><strong>Patient:</strong> ${rx.patient_name}</div>
+                            <div style="text-align: right;"><strong>Date:</strong> ${new Date(rx.prescription_date).toLocaleDateString('fr-FR')}</div>
+                            ${rx.age ? `<div><strong>Âge:</strong> ${rx.age} ans</div>` : ''}
+                        </div>
+
+                        <div class="prescription-title">Ordonnance</div>
+
+                        <div class="medications">
+                            ${medsHtml}
+                        </div>
+
+                        ${rx.notes ? `<div style="margin-top: 40px; padding: 20px; background: #f8fafc; border-radius: 15px; font-size: 18px;"><strong>Note:</strong> ${rx.notes}</div>` : ''}
+
+                        <div class="signature">
+                            <p>Cachet et Signature</p>
+                            <div style="height: 100px;"></div>
+                        </div>
+
+                        <div class="footer">
+                             CD DENTAL CLINIC - Votre sourire, notre engagement.
+                        </div>
+                    </div>
+                    <script>
+                        window.onload = () => {
+                            window.print();
+                            // window.close();
+                        };
+                    </script>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
+    // LABO FUNCTIONS
+    const fetchLaboOrders = async () => {
+        if (!doctorInfo) return;
+        setLaboLoading(true);
+        // @ts-ignore
+        let query = supabase
+            .from('labo_orders')
+            .select('*')
+            .eq('doctor_id', doctorInfo.id)
+            .gte('date', dateFrom)
+            .lte('date', dateTo)
+            .order('date', { ascending: false });
+
+        const { data, error } = await query;
+        if (error) {
+            toast.error('Erreur lors du chargement des commandes labo');
+            console.error(error);
+        } else {
+            // @ts-ignore
+            setOrders(data as LaboOrder[]);
+        }
+        setLaboLoading(false);
+    };
+
+    useEffect(() => {
+        if (doctorInfo) {
+            fetchLaboOrders();
+        }
+
+        const channel = supabase
+            .channel('labo_orders_changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'labo_orders' }, () => {
+                fetchLaboOrders();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [dateFrom, dateTo, doctorInfo]);
+
+    const filteredLaboOrders = useMemo(() => {
+        return orders.filter(o => {
+            const matchSearch = !laboSearchQuery ||
+                o.nom_prenom?.toLowerCase().includes(laboSearchQuery.toLowerCase()) ||
+                o.type_prothese?.toLowerCase().includes(laboSearchQuery.toLowerCase()) ||
+                o.laboratoire?.toLowerCase().includes(laboSearchQuery.toLowerCase()) ||
+                o.n_fiche?.toLowerCase().includes(laboSearchQuery.toLowerCase());
+
+            const matchStatus = laboStatusFilter === 'Tous' || o.statut === laboStatusFilter;
+
+            return matchSearch && matchStatus;
+        });
+    }, [orders, laboSearchQuery, laboStatusFilter]);
+
+    const laboStats = useMemo(() => {
+        let totalDevis = 0;
+        let totalCashed = 0;
+        let totalReste = 0;
+        let waitingLabCount = 0;
+
+        filteredLaboOrders.forEach(o => {
+            totalDevis += (o.devis || 0);
+            totalCashed += (o.versement || 0);
+            totalReste += (o.reste || 0);
+            if (o.statut === 'Au labo') waitingLabCount++;
+        });
+
+        return { totalDevis, totalCashed, totalReste, waitingLabCount };
+    }, [filteredLaboOrders]);
+
+    const handleLaboSave = async () => {
+        try {
+            const finalLaboratoire = laboFormData.laboratoire;
+            const payload = {
+                date: laboFormData.date || format(new Date(), 'yyyy-MM-dd'),
+                nom_prenom: laboFormData.nom_prenom || '',
+                type_prothese: laboFormData.type_prothese || '',
+                teinte: laboFormData.teinte || null,
+                laboratoire: finalLaboratoire || '',
+                n_fiche: laboFormData.n_fiche || null,
+                statut: laboFormData.statut || 'En cours',
+                devis: laboFormData.devis || 0,
+                versement: laboFormData.versement || 0,
+                telephone: laboFormData.telephone || null,
+                observation: laboFormData.observation || null,
+                doctor_id: doctorInfo?.id
+            };
+
+            if (!payload.nom_prenom || !payload.type_prothese || !payload.laboratoire) {
+                toast.error('Veuillez remplir les champs obligatoires (Nom, Type, Laboratoire)');
+                return;
+            }
+
+            if (editingLaboId) {
+                // @ts-ignore
+                const { error } = await supabase.from('labo_orders').update(payload).eq('id', editingLaboId);
+                if (error) throw error;
+                toast.success('Commande mise à jour');
+            } else {
+                // @ts-ignore
+                const { error } = await supabase.from('labo_orders').insert([payload]);
+                if (error) throw error;
+                toast.success('Nouvelle commande ajoutée');
+            }
+
+            setShowLaboAddModal(false);
+            resetLaboForm();
+        } catch (error: any) {
+            toast.error('Erreur: ' + error.message);
+        }
+    };
+
+    const handleLaboDelete = async (id: string) => {
+        try {
+            // @ts-ignore
+            const { error } = await supabase.from('labo_orders').delete().eq('id', id);
+            if (error) throw error;
+            toast.success('Commande supprimée');
+        } catch (error: any) {
+            toast.error('Erreur lors de la suppression');
+        }
+    };
+
+    const handleLaboStatusChange = async (id: string, newStatus: string) => {
+        try {
+            // Optimistic update
+            setOrders(orders.map(o => o.id === id ? { ...o, statut: newStatus as any } : o));
+            // @ts-ignore
+            const { error } = await supabase.from('labo_orders').update({ statut: newStatus }).eq('id', id);
+            if (error) throw error;
+            toast.success('Statut mis à jour');
+        } catch (error: any) {
+            toast.error('Erreur: ' + error.message);
+            fetchLaboOrders(); // rollback
+        }
+    };
+
+    const handleLaboPaymentSubmit = async () => {
+        if (!laboPaymentOrder || !laboPaymentAmount) return;
+        try {
+            const amount = parseFloat(laboPaymentAmount);
+            if (isNaN(amount) || amount <= 0) {
+                toast.error('Montant invalide');
+                return;
+            }
+
+            const newVersement = (laboPaymentOrder.versement || 0) + amount;
+
+            // Optimistic update
+            setOrders(orders.map(o => o.id === laboPaymentOrder.id ? {
+                ...o,
+                versement: newVersement,
+                reste: (o.devis || 0) - newVersement
+            } : o));
+
+            // @ts-ignore
+            const { error } = await supabase.from('labo_orders').update({ versement: newVersement }).eq('id', laboPaymentOrder.id);
+            if (error) throw error;
+
+            toast.success('Versement ajouté');
+            setShowLaboPaymentModal(false);
+            setLaboPaymentOrder(null);
+            setLaboPaymentAmount('');
+        } catch (error: any) {
+            toast.error('Erreur: ' + error.message);
+            fetchLaboOrders(); // rollback
+        }
+    };
+
+    const resetLaboForm = () => {
+        setEditingLaboId(null);
+        setCustomLabo(false);
+        setLaboFormData({
+            date: format(new Date(), 'yyyy-MM-dd'),
+            statut: 'En cours',
+            devis: 0,
+            versement: 0,
+            nom_prenom: '',
+            type_prothese: '',
+            teinte: '',
+            laboratoire: '',
+            n_fiche: '',
+            telephone: '',
+            observation: ''
+        });
+    };
+
+    const openLaboEdit = (order: LaboOrder) => {
+        setEditingLaboId(order.id);
+        if (!DEFAULT_LABOS.includes(order.laboratoire)) {
+            setCustomLabo(true);
+        } else {
+            setCustomLabo(false);
+        }
+        setLaboFormData({
+            ...order
+        });
+        setShowLaboAddModal(true);
+    };
+
+    const getLaboRowClass = (order: LaboOrder) => {
+        if (order.statut === 'Livré' && order.reste === 0) {
+            return 'bg-green-50/50 border-l-4 border-green-500';
+        }
+        if (order.statut === 'Au labo') {
+            return 'bg-yellow-50/50 border-l-4 border-yellow-400';
+        }
+        if (order.statut === 'Problème' || (order.statut === 'Livré' && order.reste > 0)) {
+            return 'bg-red-50/50 border-l-4 border-red-500';
+        }
+        return '';
+    };
+
+    const getLaboStatutBadge = (statut: string) => {
+        switch (statut) {
+            case 'Livré':
+                return <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">Livré</Badge>;
+            case 'Au labo':
+                return <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-200">Au labo</Badge>;
+            case 'Problème':
+                return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200">Problème</Badge>;
+            default:
+                return <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200">En cours</Badge>;
+        }
+    };
 
     const handleSignOut = async () => {
         await signOut();
@@ -200,20 +663,28 @@ const MedecinDashboard = () => {
                 </div>
             </header>
 
-            <main className="p-4 lg:p-6 flex-1 space-y-6 max-w-7xl mx-auto w-full">
+            <main className="p-4 lg:p-6 flex-1 space-y-6 lg:max-w-full mx-auto w-full">
                 <Tabs defaultValue="ordonnances" className="w-full">
-                    <TabsList className="grid w-full grid-cols-4 bg-muted/50 p-1 rounded-xl h-12">
+                    <TabsList className="grid w-full grid-cols-5 bg-muted/50 p-1 rounded-xl h-12">
                         <TabsTrigger value="ordonnances" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                            <FileText className="h-4 w-4 mr-2" /> Ordonnances
+                            <FileText className="h-4 w-4 md:mr-2" />
+                            <span className="hidden md:inline">Ordonnances</span>
                         </TabsTrigger>
                         <TabsTrigger value="calendar" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                            <CalendarIcon className="h-4 w-4 mr-2" /> Agenda
+                            <CalendarIcon className="h-4 w-4 md:mr-2" />
+                            <span className="hidden md:inline">Agenda</span>
                         </TabsTrigger>
                         <TabsTrigger value="patients" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                            <Users className="h-4 w-4 mr-2" /> Patients
+                            <Users className="h-4 w-4 md:mr-2" />
+                            <span className="hidden md:inline">Patients</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="labo" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                            <FlaskConical className="h-4 w-4 md:mr-2" />
+                            <span className="hidden md:inline">Labo</span>
                         </TabsTrigger>
                         <TabsTrigger value="analytics" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                            <PieChart className="h-4 w-4 mr-2" /> Analyses
+                            <PieChart className="h-4 w-4 md:mr-2" />
+                            <span className="hidden md:inline">Analyses</span>
                         </TabsTrigger>
                     </TabsList>
 
@@ -222,7 +693,7 @@ const MedecinDashboard = () => {
                         <div className="flex flex-col gap-6">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                 <h1 className="text-2xl font-black italic text-slate-800">Gestion des Ordonnances</h1>
-                                <Button onClick={() => navigate('/ordonnance')} className="rounded-xl h-11 px-6 shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90">
+                                <Button onClick={() => setShowOrdonnanceModal(true)} className="rounded-xl h-11 px-6 shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90">
                                     <Plus className="h-4 w-4 mr-2" /> Nouvelle Ordonnance
                                 </Button>
                             </div>
@@ -268,9 +739,21 @@ const MedecinDashboard = () => {
                                                             {rx.medications?.length > 2 && <span className="text-[10px] text-slate-400">+{rx.medications.length - 2}</span>}
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Button variant="ghost" size="sm" onClick={() => navigate('/ordonnance')} className="rounded-lg h-8 w-8 text-primary hover:bg-primary/5">
-                                                            <FileText className="h-4 w-4" />
+                                                    <TableCell className="text-right flex items-center justify-end gap-2">
+                                                        <Button variant="ghost" size="sm" onClick={() => handlePrintOrdonnance(rx)} className="rounded-lg h-8 w-8 text-primary hover:bg-primary/5">
+                                                            <Printer className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button variant="ghost" size="sm" onClick={() => {
+                                                            setOrdonnanceFormData({
+                                                                patient_name: rx.patient_name,
+                                                                age: rx.age?.toString() || '',
+                                                                date: rx.prescription_date,
+                                                                medications: rx.medications,
+                                                                notes: rx.notes || ''
+                                                            });
+                                                            setShowOrdonnanceModal(true);
+                                                        }} className="rounded-lg h-8 w-8 text-slate-400 hover:bg-slate-50">
+                                                            <Edit3 className="h-4 w-4" />
                                                         </Button>
                                                     </TableCell>
                                                 </TableRow>
@@ -434,6 +917,181 @@ const MedecinDashboard = () => {
                                     </Card>
                                 ))}
                             </div>
+                        </div>
+                    </TabsContent>
+
+                    {/* LABO CONTENT */}
+                    <TabsContent value="labo" className="mt-6 animate-in fade-in slide-in-from-bottom-2">
+                        <div className="space-y-6">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                <h1 className="text-2xl font-black italic text-slate-800">Suivi Travaux Labo</h1>
+                                <Button onClick={() => { resetLaboForm(); setShowLaboAddModal(true); }} className="rounded-xl h-11 px-6 shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90">
+                                    <Plus className="h-4 w-4 mr-2" /> Nouvel Envoi
+                                </Button>
+                            </div>
+
+                            {/* Stats Cards */}
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                                <Card className="border-0 shadow-premium bg-white">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                                            <Wallet className="h-4 w-4 text-primary" />
+                                            <h3 className="text-xs font-bold uppercase tracking-widest">Total Devis</h3>
+                                        </div>
+                                        <p className="text-2xl font-black text-slate-800">{laboStats.totalDevis.toLocaleString()} <span className="text-xs font-normal">DA</span></p>
+                                    </CardContent>
+                                </Card>
+                                <Card className="border-0 shadow-premium bg-emerald-50/50">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-center gap-2 text-emerald-700 mb-2">
+                                            <DollarSign className="h-4 w-4" />
+                                            <h3 className="text-xs font-bold uppercase tracking-widest">Total Encaissé</h3>
+                                        </div>
+                                        <p className="text-2xl font-black text-emerald-700">{laboStats.totalCashed.toLocaleString()} <span className="text-xs font-normal">DA</span></p>
+                                    </CardContent>
+                                </Card>
+                                <Card className="border-0 shadow-premium bg-rose-50/50">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-center gap-2 text-rose-700 mb-2">
+                                            <TrendingUp className="h-4 w-4" />
+                                            <h3 className="text-xs font-bold uppercase tracking-widest">Total Reste</h3>
+                                        </div>
+                                        <p className="text-2xl font-black text-rose-700">{laboStats.totalReste.toLocaleString()} <span className="text-xs font-normal">DA</span></p>
+                                    </CardContent>
+                                </Card>
+                                <Card className="border-0 shadow-premium bg-amber-50/50">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-center gap-2 text-amber-700 mb-2">
+                                            <Clock className="h-4 w-4" />
+                                            <h3 className="text-xs font-bold uppercase tracking-widest">En attente</h3>
+                                        </div>
+                                        <p className="text-2xl font-black text-amber-700">{laboStats.waitingLabCount}</p>
+                                    </CardContent>
+                                </Card>
+                            </div>
+
+                            {/* Filters */}
+                            <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-2xl shadow-sm border">
+                                <Tabs defaultValue="Tous" className="w-full md:w-auto" onValueChange={setLaboStatusFilter}>
+                                    <TabsList className="bg-slate-100/50 h-10">
+                                        <TabsTrigger value="Tous">Tous</TabsTrigger>
+                                        <TabsTrigger value="Au labo">Au labo</TabsTrigger>
+                                        <TabsTrigger value="Livré">Livré</TabsTrigger>
+                                        <TabsTrigger value="Problème">Problème</TabsTrigger>
+                                    </TabsList>
+                                </Tabs>
+
+                                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                                    <div className="flex items-center gap-2">
+                                        <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-10 text-xs rounded-xl" />
+                                        <span className="text-slate-300">-</span>
+                                        <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-10 text-xs rounded-xl" />
+                                    </div>
+                                    <div className="relative flex-1 min-w-[200px]">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                        <Input
+                                            placeholder="Rechercher un envoi..."
+                                            value={laboSearchQuery}
+                                            onChange={(e) => setLaboSearchQuery(e.target.value)}
+                                            className="pl-9 h-10 rounded-xl"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Table */}
+                            <Card className="border-none shadow-premium overflow-hidden bg-white">
+                                <div className="overflow-x-auto min-h-[400px]">
+                                    <Table>
+                                        <TableHeader className="bg-slate-50/50">
+                                            <TableRow>
+                                                <TableHead className="font-bold text-xs text-center">Date</TableHead>
+                                                <TableHead className="font-bold text-xs text-center">Patient</TableHead>
+                                                <TableHead className="font-bold text-xs text-center">Type / Teinte</TableHead>
+                                                <TableHead className="font-bold text-xs text-center">Labo / Réf.</TableHead>
+                                                <TableHead className="font-bold text-xs text-center">Statut</TableHead>
+                                                <TableHead className="font-bold text-xs text-center">Total (DA)</TableHead>
+                                                <TableHead className="font-bold text-xs text-center">Versé (DA)</TableHead>
+                                                <TableHead className="font-bold text-xs text-center">Reste (DA)</TableHead>
+                                                <TableHead className="font-bold text-xs text-center">Actions</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {laboLoading ? (
+                                                <TableRow><TableCell colSpan={9} className="text-center py-12 text-slate-300 uppercase font-black tracking-widest text-xs">Chargement...</TableCell></TableRow>
+                                            ) : filteredLaboOrders.length === 0 ? (
+                                                <TableRow><TableCell colSpan={9} className="text-center py-12 text-slate-300 uppercase font-black tracking-widest text-xs">Aucun envoi trouvé</TableCell></TableRow>
+                                            ) : (
+                                                filteredLaboOrders.map(order => (
+                                                    <TableRow key={order.id} className={cn("hover:bg-slate-50 transition-colors", getLaboRowClass(order))}>
+                                                        <TableCell className="text-xs font-medium text-center">{format(new Date(order.date), 'dd/MM/yy')}</TableCell>
+                                                        <TableCell className="text-center">
+                                                            <p className="font-bold text-sm text-slate-800">{order.nom_prenom}</p>
+                                                            {order.telephone && <p className="text-[10px] text-slate-400 font-medium">{order.telephone}</p>}
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            <p className="text-sm font-medium text-slate-700">{order.type_prothese}</p>
+                                                            {order.teinte && <Badge variant="secondary" className="bg-primary/5 text-primary text-[9px] font-black h-4 border-none mx-auto">{order.teinte}</Badge>}
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            <p className="text-sm font-bold text-slate-800">{order.laboratoire}</p>
+                                                            {order.n_fiche && <p className="text-[10px] text-slate-400"># {order.n_fiche}</p>}
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            <div className="flex justify-center">
+                                                                <Select value={order.statut} onValueChange={(val) => handleLaboStatusChange(order.id, val)}>
+                                                                    <SelectTrigger className="h-8 w-[110px] text-[10px] border-none shadow-none bg-transparent p-0 justify-center">
+                                                                        {getLaboStatutBadge(order.statut)}
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {STATUS_OPTIONS.map(opt => <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>)}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className="text-center font-bold text-sm text-slate-600">
+                                                            {order.devis?.toLocaleString()}
+                                                        </TableCell>
+                                                        <TableCell className="text-center font-bold text-sm text-emerald-600/80">
+                                                            {order.versement?.toLocaleString()}
+                                                        </TableCell>
+                                                        <TableCell className={cn("text-center font-black text-sm", order.reste > 0 ? "text-rose-500" : "text-emerald-600")}>
+                                                            {order.reste?.toLocaleString()}
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            <div className="flex items-center justify-center gap-1">
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600 hover:bg-indigo-50" onClick={() => { setLaboPaymentOrder(order); setShowLaboPaymentModal(true); }}>
+                                                                    <CreditCard className="h-4 w-4" />
+                                                                </Button>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:bg-slate-50" onClick={() => openLaboEdit(order)}>
+                                                                    <Pencil className="h-4 w-4" />
+                                                                </Button>
+                                                                <AlertDialog>
+                                                                    <AlertDialogTrigger asChild>
+                                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500 hover:bg-rose-50">
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </AlertDialogTrigger>
+                                                                    <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+                                                                        <AlertDialogHeader>
+                                                                            <AlertDialogTitle className="font-black italic text-rose-500">Supprimer cet envoi ?</AlertDialogTitle>
+                                                                            <AlertDialogDescription className="font-medium">Cette action est définitive et supprimera toutes les données liées.</AlertDialogDescription>
+                                                                        </AlertDialogHeader>
+                                                                        <AlertDialogFooter>
+                                                                            <AlertDialogCancel className="rounded-xl font-bold">Annuler</AlertDialogCancel>
+                                                                            <AlertDialogAction onClick={() => handleLaboDelete(order.id)} className="bg-rose-500 hover:bg-rose-600 rounded-xl font-bold">Confirmer</AlertDialogAction>
+                                                                        </AlertDialogFooter>
+                                                                    </AlertDialogContent>
+                                                                </AlertDialog>
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </Card>
                         </div>
                     </TabsContent>
 
@@ -646,6 +1304,233 @@ const MedecinDashboard = () => {
                         <Button onClick={() => setViewingNote(null)} className="w-full h-11 rounded-xl font-bold shadow-premium">
                             Fermer
                         </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ORDONNANCE CREATION MODAL */}
+            <Dialog open={showOrdonnanceModal} onOpenChange={setShowOrdonnanceModal}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-[2rem] border-none shadow-2xl p-0">
+                    <DialogHeader className="p-6 border-b bg-slate-50/50">
+                        <DialogTitle className="text-xl font-black italic text-primary flex items-center gap-2">
+                            <FileText className="h-6 w-6" /> Nouvelle Ordonnance
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="p-6 space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date</label>
+                                <Input type="date" value={ordonnanceFormData.date} onChange={e => setOrdonnanceFormData({ ...ordonnanceFormData, date: e.target.value })} className="rounded-xl border-slate-200" />
+                            </div>
+                            <div className="md:col-span-1 space-y-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Patient <span className="text-rose-500">*</span></label>
+                                <Input placeholder="Nom Complet" value={ordonnanceFormData.patient_name} onChange={e => setOrdonnanceFormData({ ...ordonnanceFormData, patient_name: e.target.value })} className="rounded-xl border-slate-200" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Âge</label>
+                                <Input type="number" placeholder="--" value={ordonnanceFormData.age} onChange={e => setOrdonnanceFormData({ ...ordonnanceFormData, age: e.target.value })} className="rounded-xl border-slate-200" />
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <h3 className="text-sm font-black italic text-slate-400 uppercase tracking-widest">Médicaments</h3>
+                                <Button variant="outline" size="sm" onClick={addMedication} className="rounded-lg text-[10px] font-black uppercase tracking-widest h-7">
+                                    <Plus className="h-3 w-3 mr-1" /> Ajouter
+                                </Button>
+                            </div>
+
+                            <div className="space-y-3">
+                                {ordonnanceFormData.medications.map((med, idx) => (
+                                    <div key={idx} className="p-4 bg-slate-50 rounded-2xl space-y-3 border border-slate-100 relative group">
+                                        {ordonnanceFormData.medications.length > 1 && (
+                                            <Button variant="ghost" size="icon" onClick={() => removeMedication(idx)} className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-white shadow-sm text-rose-500 hover:text-rose-600 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all">
+                                                <X className="h-3 w-3" />
+                                            </Button>
+                                        )}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            <Input placeholder="Nom du médicament..." value={med.name} onChange={e => updateMedication(idx, 'name', e.target.value)} className="rounded-xl border-slate-200 text-sm font-bold h-9" />
+                                            <Input placeholder="Posologie (Ex: 1 comp x 3 / j)" value={med.dosage} onChange={e => updateMedication(idx, 'dosage', e.target.value)} className="rounded-xl border-slate-200 text-sm h-9" />
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            <Input placeholder="Durée (Ex: 5 jours)" value={med.duration} onChange={e => updateMedication(idx, 'duration', e.target.value)} className="rounded-xl border-slate-200 text-sm h-9" />
+                                            <Input placeholder="Instructions..." value={med.instructions} onChange={e => updateMedication(idx, 'instructions', e.target.value)} className="rounded-xl border-slate-200 text-sm h-9" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Notes (Optionnel)</label>
+                            <Input placeholder="Observations générales..." value={ordonnanceFormData.notes} onChange={e => setOrdonnanceFormData({ ...ordonnanceFormData, notes: e.target.value })} className="rounded-xl border-slate-200" />
+                        </div>
+                    </div>
+                    <DialogFooter className="p-6 bg-slate-50/50 flex gap-2">
+                        <Button variant="ghost" onClick={() => setShowOrdonnanceModal(false)} className="rounded-xl font-bold">Annuler</Button>
+                        <Button variant="outline" onClick={() => handlePrintOrdonnance({ ...ordonnanceFormData, prescription_date: ordonnanceFormData.date })} className="rounded-xl font-bold border-primary text-primary hover:bg-primary/5">
+                            <Printer className="h-4 w-4 mr-2" /> Imprimer (A3)
+                        </Button>
+                        <Button onClick={handleSaveOrdonnance} disabled={savingOrdonnance} className="rounded-xl font-black px-8 shadow-lg shadow-primary/20">
+                            {savingOrdonnance ? 'Création...' : 'Enregistrer'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* LABO ADD/EDIT MODAL */}
+            <Dialog open={showLaboAddModal} onOpenChange={setShowLaboAddModal}>
+                <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto rounded-[2rem] border-none shadow-2xl p-0">
+                    <DialogHeader className="p-6 border-b bg-slate-50/50">
+                        <DialogTitle className="text-xl font-black italic text-primary flex items-center gap-2">
+                            <FlaskConical className="h-6 w-6" />
+                            {editingLaboId ? 'Modifier la commande' : 'Nouvel envoi Labo'}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date</label>
+                            <Input type="date" value={laboFormData.date} onChange={e => setLaboFormData({ ...laboFormData, date: e.target.value })} className="rounded-xl border-slate-200" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Patient <span className="text-rose-500">*</span></label>
+                            <Input placeholder="Nom du patient" value={laboFormData.nom_prenom} onChange={e => setLaboFormData({ ...laboFormData, nom_prenom: e.target.value })} className="rounded-xl border-slate-200" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Type de prothèse <span className="text-rose-500">*</span></label>
+                            <Select value={laboFormData.type_prothese} onValueChange={v => setLaboFormData({ ...laboFormData, type_prothese: v })}>
+                                <SelectTrigger className="rounded-xl border-slate-200"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                                <SelectContent className="rounded-xl border-none shadow-xl">
+                                    {TYPE_SUGGESTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Teinte</label>
+                            <Select value={laboFormData.teinte || 'Non spécifié'} onValueChange={v => setLaboFormData({ ...laboFormData, teinte: v === 'Non spécifié' ? '' : v })}>
+                                <SelectTrigger className="rounded-xl border-slate-200"><SelectValue placeholder="-" /></SelectTrigger>
+                                <SelectContent className="rounded-xl border-none shadow-xl">
+                                    <SelectItem value="Non spécifié">Non spécifié</SelectItem>
+                                    {TEINTE_OPTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Laboratoire <span className="text-rose-500">*</span></label>
+                            {!customLabo ? (
+                                <Select value={laboFormData.laboratoire} onValueChange={v => {
+                                    if (v === 'autre') {
+                                        setCustomLabo(true);
+                                        setLaboFormData({ ...laboFormData, laboratoire: '' });
+                                    } else {
+                                        setLaboFormData({ ...laboFormData, laboratoire: v });
+                                    }
+                                }}>
+                                    <SelectTrigger className="rounded-xl border-slate-200"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                                    <SelectContent className="rounded-xl border-none shadow-xl">
+                                        {DEFAULT_LABOS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                        <SelectItem value="autre" className="font-bold text-primary">Autre (Nouveau)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            ) : (
+                                <div className="flex gap-2">
+                                    <Input
+                                        placeholder="Nom du laboratoire..."
+                                        value={laboFormData.laboratoire || ''}
+                                        onChange={e => setLaboFormData({ ...laboFormData, laboratoire: e.target.value })}
+                                        className="rounded-xl border-slate-200"
+                                        autoFocus
+                                    />
+                                    <Button variant="ghost" size="icon" onClick={() => {
+                                        setCustomLabo(false);
+                                        setLaboFormData({ ...laboFormData, laboratoire: '' });
+                                    }} className="rounded-xl">
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">N° Fiche (Réf)</label>
+                            <Input placeholder="..." value={laboFormData.n_fiche || ''} onChange={e => setLaboFormData({ ...laboFormData, n_fiche: e.target.value })} className="rounded-xl border-slate-200" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Statut</label>
+                            <Select value={laboFormData.statut} onValueChange={v => setLaboFormData({ ...laboFormData, statut: v as any })}>
+                                <SelectTrigger className="rounded-xl border-slate-200"><SelectValue /></SelectTrigger>
+                                <SelectContent className="rounded-xl border-none shadow-xl">
+                                    {STATUS_OPTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Téléphone</label>
+                            <Input placeholder="05..." value={laboFormData.telephone || ''} onChange={e => setLaboFormData({ ...laboFormData, telephone: e.target.value })} className="rounded-xl border-slate-200" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Devis (DA)</label>
+                            <Input type="number" min="0" value={laboFormData.devis} onChange={e => setLaboFormData({ ...laboFormData, devis: parseFloat(e.target.value) || 0 })} className="rounded-xl border-slate-200" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Versement (DA)</label>
+                            <Input type="number" min="0" value={laboFormData.versement} onChange={e => setLaboFormData({ ...laboFormData, versement: parseFloat(e.target.value) || 0 })} className="rounded-xl border-slate-200" />
+                        </div>
+
+                        <div className="space-y-1 md:col-span-2">
+                            <div className="p-4 bg-slate-50 rounded-2xl flex justify-between items-center">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Reste à payer</span>
+                                <span className={cn("text-xl font-black", (laboFormData.devis || 0) - (laboFormData.versement || 0) > 0 ? 'text-rose-500' : 'text-emerald-600')}>
+                                    {((laboFormData.devis || 0) - (laboFormData.versement || 0)).toLocaleString()} DA
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1 md:col-span-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Observations</label>
+                            <Input placeholder="..." value={laboFormData.observation || ''} onChange={e => setLaboFormData({ ...laboFormData, observation: e.target.value })} className="rounded-xl border-slate-200" />
+                        </div>
+                    </div>
+                    <DialogFooter className="p-6 bg-slate-50/50 flex gap-2">
+                        <Button variant="ghost" onClick={() => setShowLaboAddModal(false)} className="rounded-xl font-bold">Annuler</Button>
+                        <Button onClick={handleLaboSave} className="rounded-xl font-black px-8 shadow-lg shadow-primary/20">Enregistrer</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* LABO PAYMENT MODAL */}
+            <Dialog open={showLaboPaymentModal} onOpenChange={setShowLaboPaymentModal}>
+                <DialogContent className="max-w-sm rounded-[2rem] border-none shadow-2xl p-0 overflow-hidden">
+                    <DialogHeader className="p-6 border-b bg-slate-50/50">
+                        <DialogTitle className="text-xl font-black italic text-primary flex items-center gap-2">
+                            <CreditCard className="h-6 w-6" />
+                            Verser Labo
+                        </DialogTitle>
+                        <DialogDescription className="font-bold text-slate-400 uppercase text-[10px] tracking-widest mt-1">Patient: {laboPaymentOrder?.nom_prenom}</DialogDescription>
+                    </DialogHeader>
+                    <div className="p-6 space-y-4">
+                        <div className="flex justify-between items-center p-4 bg-rose-50 rounded-2xl">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-rose-400">Reste actuel</span>
+                            <span className="font-black text-lg text-rose-600">{laboPaymentOrder?.reste?.toLocaleString()} DA</span>
+                        </div>
+                        <div className="space-y-2 mt-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Montant du versement (DA)</label>
+                            <Input
+                                type="number"
+                                placeholder="Montant..."
+                                value={laboPaymentAmount}
+                                onChange={e => setLaboPaymentAmount(e.target.value)}
+                                className="rounded-xl border-slate-200 h-12 text-lg font-black"
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter className="p-6 bg-slate-50/50 flex gap-2">
+                        <Button variant="ghost" onClick={() => setShowLaboPaymentModal(false)} className="rounded-xl font-bold">Annuler</Button>
+                        <Button onClick={handleLaboPaymentSubmit} className="rounded-xl font-black flex-1 shadow-lg shadow-primary/20">Valider</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
