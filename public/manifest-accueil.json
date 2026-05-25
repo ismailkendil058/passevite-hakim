@@ -4,7 +4,7 @@
     "short_name": "accueil",
     "description": "Interface d'accueil PasseVite.",
     "start_url": "/accueil/login",
-    "scope": "/accueil",
+    "scope": "/",
     "display": "standalone",
     "background_color": "#FFFFFF",
     "theme_color": "#FFFFFF",

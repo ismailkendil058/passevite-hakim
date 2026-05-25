@@ -4,7 +4,7 @@
     "short_name": "doctor",
     "description": "Portail Médecin PasseVite",
     "start_url": "/doctor/login",
-    "scope": "/doctor",
+    "scope": "/",
     "display": "standalone",
     "background_color": "#FFFFFF",
     "theme_color": "#FFFFFF",
