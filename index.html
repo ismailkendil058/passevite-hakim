@@ -40,6 +40,9 @@
       } else if (path.startsWith('/doctor')) {
         manifest = '/manifest-medecin.json';
         title = 'PV doctor';
+      } else if (path.startsWith('/equipe')) {
+        manifest = '/manifest-equipe.json';
+        title = 'PV equipe';
       }
 
       var link = document.createElement('link');
