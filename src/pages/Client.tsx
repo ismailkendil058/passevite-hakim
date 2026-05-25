@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { startOfDay, endOfDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, Clock, Search, AlertCircle } from 'lucide-react';
 
 interface QueueData {
@@ -20,9 +19,6 @@ interface QueueData {
 
 const Client = () => {
   const [phone, setPhone] = useState('');
-  const [manualState, setManualState] = useState('N');
-  const [manualDoctor, setManualDoctor] = useState('');
-  const [manualNumber, setManualNumber] = useState('');
   const [queueData, setQueueData] = useState<QueueData | null>(null);
   const [loading, setLoading] = useState(false);
   const [doctors, setDoctors] = useState<{ id: string; name: string; initial: string }[]>([]);
@@ -36,41 +32,20 @@ const Client = () => {
   const lookupByPhone = async () => {
     if (!phone.trim()) return;
     setLoading(true);
-    await findClient('phone', phone.trim());
+    await findClient(phone.trim());
     setLoading(false);
   };
 
-  const lookupById = async () => {
-    if (!manualDoctor || !manualNumber) return;
-    const doctor = doctors.find(d => d.initial === manualDoctor);
-    if (!doctor) return;
-    const clientId = `${manualState}${manualNumber}${manualDoctor}`;
-    setLoading(true);
-    await findClient('id', clientId);
-    setLoading(false);
-  };
+  const findClient = async (value: string) => {
+    const todayStart = startOfDay(new Date()).toISOString();
+    const todayEnd = endOfDay(new Date()).toISOString();
 
-  const findClient = async (mode: 'phone' | 'id', value: string) => {
-    const { data: session } = await supabase
-      .from('sessions')
-      .select('id')
-      .eq('is_active', true)
-      .maybeSingle();
-
-    if (!session) {
-      setQueueData({ client_id: '', state: '', position: 0, peopleBefore: 0, doctor_name: '', found: false });
-      return;
-    }
-
-    // Optimization: Let the database handle the complex priority sorting
-    // Priority: U (0), N (1), R (2). We can use a CASE statement in order if supported, 
-    // but the safest and fastest way is multiple orders or a calculated field.
-    // For now, we'll fetch only what's needed for the current session.
     const { data: allEntries } = await supabase
       .from('queue_entries')
       .select('*, doctor:doctors(*)')
-      .eq('session_id', session.id)
-      .eq('status', 'waiting');
+      .in('status', ['waiting', 'in_cabinet'])
+      .gte('created_at', todayStart)
+      .lte('created_at', todayEnd);
 
     if (!allEntries) {
       setQueueData({ client_id: '', state: '', position: 0, peopleBefore: 0, doctor_name: '', found: false });
@@ -78,19 +53,28 @@ const Client = () => {
     }
 
     const PRIORITY: Record<string, number> = { U: 0, N: 1, R: 2 };
-    const sorted = [...allEntries].sort((a, b) => {
-      const pa = PRIORITY[a.state] ?? 99;
-      const pb = PRIORITY[b.state] ?? 99;
-      if (pa !== pb) return pa - pb;
-      return a.state_number - b.state_number;
+    const sorted = [...(allEntries || [])].sort((a, b) => {
+      // Priority: U (Urgent) always has absolute priority
+      if (a.state === 'U' && b.state !== 'U') return -1;
+      if (a.state !== 'U' && b.state === 'U') return 1;
+      if (a.state === 'U' && b.state === 'U') return a.state_number - b.state_number;
+
+      // For N (New) and R (Appointment), alternate: N1, R1, N2, R2, ...
+      const getRank = (e: any) => {
+        const num = e.state_number || 0;
+        if (e.state === 'N') return num * 2 - 1; // N1->1, N2->3, N3->5
+        if (e.state === 'R') return num * 2;     // R1->2, R2->4, R3->6
+        return 999;
+      };
+
+      const rankA = getRank(a);
+      const rankB = getRank(b);
+
+      if (rankA !== rankB) return rankA - rankB;
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     });
 
-    let entry;
-    if (mode === 'phone') {
-      entry = sorted.find(e => e.phone === value);
-    } else {
-      entry = sorted.find(e => e.client_id === value);
-    }
+    const entry = sorted.find(e => e.phone === value);
 
     if (!entry) {
       setQueueData({ client_id: '', state: '', position: 0, peopleBefore: 0, doctor_name: '', found: false });
@@ -99,10 +83,13 @@ const Client = () => {
 
     const idx = sorted.findIndex(e => e.id === entry!.id);
 
-    // Count people before this client waiting for the SAME doctor
-    const peopleBeforeSameDoctor = sorted.slice(0, idx).filter(
-      e => e.doctor_id === entry!.doctor_id
-    ).length;
+    // Count people before this client WAITING for the SAME doctor
+    // If the entry itself is 'in_cabinet', peopleBefore should be 0
+    const peopleBeforeSameDoctor = entry.status === 'in_cabinet'
+      ? 0
+      : sorted.slice(0, idx).filter(
+        e => e.doctor_id === entry!.doctor_id && e.status === 'waiting'
+      ).length;
 
     setQueueData({
       client_id: entry.client_id,
@@ -129,19 +116,13 @@ const Client = () => {
           table: 'queue_entries'
         },
         (payload) => {
-          // Only trigger if a relevant record changed or something was deleted/inserted
-          // which could affect the position.
-          if (phone.trim()) findClient('phone', phone.trim());
-          else if (manualDoctor && manualNumber) {
-            const clientId = `${manualState}${manualNumber}${manualDoctor}`;
-            findClient('id', clientId);
-          }
+          if (phone.trim()) findClient(phone.trim());
         }
       )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [queueData?.found, phone, manualState, manualDoctor, manualNumber]);
+  }, [queueData?.found, phone]);
 
   const stateLabels: Record<string, string> = { U: 'Urgence', N: 'Nouveau', R: 'Rendez-vous' };
 
@@ -158,53 +139,17 @@ const Client = () => {
             <CardHeader className="pb-2 sm:pb-4">
               <CardTitle className="text-base sm:text-lg text-center font-bold tracking-tight">Trouver votre position</CardTitle>
             </CardHeader>
-            <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
-              <Tabs defaultValue="phone" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1 rounded-xl">
-                  <TabsTrigger value="phone" className="text-xs sm:text-sm rounded-lg data-[state=active]:shadow-sm">Par téléphone</TabsTrigger>
-                  <TabsTrigger value="id" className="text-xs sm:text-sm rounded-lg data-[state=active]:shadow-sm">Par identifiant</TabsTrigger>
-                </TabsList>
-                <TabsContent value="phone" className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
-                  <Input
-                    placeholder="Votre numéro de téléphone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    type="tel"
-                    className="h-11 sm:h-12"
-                  />
-                  <Button onClick={lookupByPhone} className="w-full h-11 sm:h-12" disabled={loading}>
-                    <Search className="h-4 w-4 mr-2" /> Rechercher
-                  </Button>
-                </TabsContent>
-                <TabsContent value="id" className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
-                  <Select value={manualState} onValueChange={setManualState}>
-                    <SelectTrigger className="h-11 sm:h-12"><SelectValue placeholder="État" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="U">U - Urgence</SelectItem>
-                      <SelectItem value="N">N - Nouveau</SelectItem>
-                      <SelectItem value="R">R - Rendez-vous</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={manualDoctor} onValueChange={setManualDoctor}>
-                    <SelectTrigger className="h-11 sm:h-12"><SelectValue placeholder="Initiale équipe" /></SelectTrigger>
-                    <SelectContent>
-                      {doctors.map(d => (
-                        <SelectItem key={d.initial} value={d.initial}>{d.initial} - {d.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    placeholder="Numéro"
-                    value={manualNumber}
-                    onChange={(e) => setManualNumber(e.target.value)}
-                    type="number"
-                    className="h-11 sm:h-12"
-                  />
-                  <Button onClick={lookupById} className="w-full h-11 sm:h-12" disabled={loading}>
-                    <Search className="h-4 w-4 mr-2" /> Rechercher
-                  </Button>
-                </TabsContent>
-              </Tabs>
+            <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-4">
+              <Input
+                placeholder="Votre numéro de téléphone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                type="tel"
+                className="h-11 sm:h-12"
+              />
+              <Button onClick={lookupByPhone} className="w-full h-11 sm:h-12" disabled={loading}>
+                <Search className="h-4 w-4 mr-2" /> Rechercher
+              </Button>
             </CardContent>
           </Card>
         </div>
