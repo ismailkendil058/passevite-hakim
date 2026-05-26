@@ -14,7 +14,7 @@ interface UserRole {
     id: string;
     username: string;
     password: string;
-    role: 'manager' | 'receptionist' | 'doctor';
+    role: 'manager' | 'receptionist' | 'doctor' | 'admin';
     initial?: string;
     created_at: string;
     source: 'roles' | 'doctors';
@@ -25,11 +25,12 @@ const UserManager = () => {
     const navigate = useNavigate();
     const [users, setUsers] = useState<UserRole[]>([]);
     const [loading, setLoading] = useState(true);
-    const [newUsername, setNewUsername] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [newRole, setNewRole] = useState<'manager' | 'receptionist' | 'doctor'>('receptionist');
-    const [newInitial, setNewInitial] = useState('');
-    const [isAdding, setIsAdding] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editUsername, setEditUsername] = useState('');
+    const [editPassword, setEditPassword] = useState('');
+    const [editRole, setEditRole] = useState<'manager' | 'receptionist' | 'doctor' | 'admin'>('receptionist');
+    const [originalUsername, setOriginalUsername] = useState('');
+    const [isUpdating, setIsUpdating] = useState(false);
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -41,7 +42,7 @@ const UserManager = () => {
             if (doctorsError) throw doctorsError;
 
             const combined: UserRole[] = [
-                ...(rolesData || []).map((r: any) => ({ ...r, source: 'roles' })),
+                ...(rolesData || []).map((r: any) => ({ ...r, id: r.id || r.username, source: 'roles' })),
                 ...(doctorsData || []).map((d: any) => ({
                     id: d.id,
                     username: d.name,
@@ -66,60 +67,48 @@ const UserManager = () => {
         fetchUsers();
     }, []);
 
-    const handleAddUser = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newUsername.trim() || !newPassword.trim()) return;
-        if (newRole === 'doctor' && !newInitial.trim()) {
-            toast.error('Initiales requises pour un docteur');
+
+
+    const startEditing = (user: UserRole) => {
+        setEditingId(user.id);
+        setEditUsername(user.username);
+        setEditPassword(user.password);
+        setEditRole(user.role);
+        setOriginalUsername(user.username);
+    };
+
+    const handleUpdateUser = async (user: UserRole) => {
+        if (!editUsername.trim() || !editPassword.trim()) {
+            toast.error('Champs requis');
             return;
         }
 
-        setIsAdding(true);
+        setIsUpdating(true);
         try {
-            if (newRole === 'doctor') {
-                const { error } = await (supabase as any).from('doctors').insert([{
-                    name: newUsername.trim(),
-                    password: newPassword.trim(),
-                    initial: newInitial.trim().toUpperCase()
-                }]);
+            if (user.source === 'doctors') {
+                const { error } = await (supabase as any).from('doctors').update({
+                    name: editUsername.trim(),
+                    password: editPassword.trim()
+                }).eq('id', user.id);
                 if (error) throw error;
             } else {
-                const { error } = await (supabase as any).from('roles').insert([{
-                    username: newUsername.trim().toLowerCase(),
-                    password: newPassword.trim(),
-                    role: newRole
-                }]);
+                const { error } = await (supabase as any).from('roles').update({
+                    username: editUsername.trim().toLowerCase(),
+                    password: editPassword.trim(),
+                    role: editRole
+                }).eq('username', originalUsername);
+
                 if (error) throw error;
             }
 
-            toast.success('Accès ajouté');
-            setNewUsername('');
-            setNewPassword('');
-            setNewInitial('');
+            toast.success('Accès mis à jour');
+            setEditingId(null);
             fetchUsers();
         } catch (error: any) {
-            console.error('Error adding user:', error);
-            toast.error(error.code === '23505' ? 'Utilisateur déjà existant' : 'Erreur lors de la création');
+            console.error('Error updating user:', error);
+            toast.error(error.code === '23505' ? 'Utilisateur déjà existant' : 'Erreur lors de la mise à jour');
         } finally {
-            setIsAdding(false);
-        }
-    };
-
-    const handleDeleteUser = async (user: UserRole) => {
-        if (user.username === 'admin') {
-            toast.error('Actions interdites sur ce compte');
-            return;
-        }
-
-        if (!confirm(`Supprimer ${user.username} ?`)) return;
-
-        try {
-            const { error } = await (supabase as any).from(user.source).delete().eq('id', user.id);
-            if (error) throw error;
-            toast.success('Accès supprimé');
-            fetchUsers();
-        } catch (error) {
-            toast.error('Erreur lors de la suppression');
+            setIsUpdating(false);
         }
     };
 
@@ -148,67 +137,6 @@ const UserManager = () => {
             </header>
 
             <div className="p-3 sm:p-4 space-y-3 sm:space-y-4 font-sans">
-                {/* Form Card - Matching Manager Card Style */}
-                <Card className="border-0 shadow-sm bg-primary/5 ring-1 ring-primary/10 overflow-hidden rounded-xl">
-                    <CardHeader className="p-4 pb-2 border-b border-primary/10 bg-primary/5">
-                        <div className="flex items-center gap-2">
-                            <UserPlus className="h-4 w-4 text-primary" />
-                            <span className="text-xs font-bold uppercase tracking-widest text-primary">Nouveau Compte</span>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="p-4 sm:p-6">
-                        <form onSubmit={handleAddUser} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-bold uppercase text-muted-foreground">Nom / Login</label>
-                                <Input
-                                    value={newUsername}
-                                    onChange={e => setNewUsername(e.target.value)}
-                                    className="h-9 sm:h-10 text-sm bg-white"
-                                    placeholder="Ex: Dr. Ahmed"
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-bold uppercase text-muted-foreground">Mot de Passe</label>
-                                <Input
-                                    value={newPassword}
-                                    onChange={e => setNewPassword(e.target.value)}
-                                    className="h-9 sm:h-10 text-sm bg-white"
-                                    placeholder="••••••"
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-bold uppercase text-muted-foreground">Rôle</label>
-                                <Select value={newRole} onValueChange={(v: any) => setNewRole(v)}>
-                                    <SelectTrigger className="h-9 sm:h-10 text-sm bg-white"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="receptionist">Réceptionniste</SelectItem>
-                                        <SelectItem value="manager">Manager</SelectItem>
-                                        <SelectItem value="doctor">Médecin</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="flex gap-2 w-full">
-                                {newRole === 'doctor' && (
-                                    <div className="flex-1 space-y-1">
-                                        <label className="text-[10px] font-bold uppercase text-muted-foreground">Initiales</label>
-                                        <Input
-                                            value={newInitial}
-                                            onChange={e => setNewInitial(e.target.value)}
-                                            className="h-9 sm:h-10 text-sm bg-white uppercase"
-                                            maxLength={3}
-                                            placeholder="JD"
-                                        />
-                                    </div>
-                                )}
-                                <Button type="submit" disabled={isAdding} className="h-9 sm:h-10 px-6 font-bold uppercase text-[10px] tracking-widest">
-                                    {isAdding ? '...' : 'Ajouter'}
-                                </Button>
-                            </div>
-                        </form>
-                    </CardContent>
-                </Card>
 
                 {/* Users List - Card view on mobile, table on desktop */}
                 <div className="sm:hidden space-y-2">
@@ -217,31 +145,72 @@ const UserManager = () => {
                     ) : (
                         users.map(u => (
                             <Card key={`${u.source}-${u.id}`} className="border-0 shadow-sm">
-                                <CardContent className="p-3 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${u.role === 'doctor' ? 'bg-blue-100 text-blue-600' : 'bg-primary/10 text-primary'
-                                            }`}>
-                                            {u.role === 'doctor' ? <Stethoscope className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />}
+                                <CardContent className="p-3">
+                                    {editingId === u.id ? (
+                                        <div className="space-y-3">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold uppercase text-muted-foreground">Nom / Login</label>
+                                                <Input
+                                                    value={editUsername}
+                                                    onChange={e => setEditUsername(e.target.value)}
+                                                    className="h-8 text-sm bg-white"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold uppercase text-muted-foreground">Mot de Passe</label>
+                                                <Input
+                                                    value={editPassword}
+                                                    onChange={e => setEditPassword(e.target.value)}
+                                                    className="h-8 text-sm bg-white"
+                                                />
+                                            </div>
+                                            {u.source === 'roles' && (
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold uppercase text-muted-foreground">Rôle</label>
+                                                    <Select value={editRole as any} onValueChange={(v: any) => setEditRole(v)}>
+                                                        <SelectTrigger className="h-8 text-sm bg-white"><SelectValue /></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="receptionist">Accueil</SelectItem>
+                                                            <SelectItem value="manager">Manager</SelectItem>
+                                                            <SelectItem value="admin">Admin</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            )}
+                                            <div className="flex gap-2 justify-end pt-1">
+                                                <Button variant="ghost" size="sm" onClick={() => setEditingId(null)} className="h-8 text-[10px] font-bold">ANNULER</Button>
+                                                <Button size="sm" onClick={() => handleUpdateUser(u)} disabled={isUpdating} className="h-8 text-[10px] font-bold">ENREGISTRER</Button>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="font-bold text-sm text-foreground uppercase tracking-tight leading-none">{u.username}</p>
-                                            <span className="text-[9px] font-black opacity-40 uppercase">{u.role}</span>
+                                    ) : (
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${u.role === 'doctor' ? 'bg-blue-100 text-blue-600' : 'bg-primary/10 text-primary'
+                                                    }`}>
+                                                    {u.role === 'doctor' ? <Stethoscope className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />}
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-sm text-foreground uppercase tracking-tight leading-none">{u.username}</p>
+                                                    <span className="text-[9px] font-black opacity-40 uppercase">
+                                                        {u.role === 'receptionist' ? 'Accueil' : u.role === 'manager' ? 'Manager' : u.role === 'admin' ? 'Admin' : 'Médecin'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="text-right">
+                                                    <p className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded">{u.password}</p>
+                                                </div>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-primary hover:bg-primary/10 rounded-full"
+                                                    onClick={() => startEditing(u)}
+                                                >
+                                                    <Key className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="text-right">
-                                            <p className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded">{u.password}</p>
-                                        </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 text-destructive hover:bg-destructive/10 rounded-full"
-                                            onClick={() => handleDeleteUser(u)}
-                                            disabled={u.username === 'admin'}
-                                        >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         ))
@@ -265,32 +234,83 @@ const UserManager = () => {
                             ) : (
                                 users.map(u => (
                                     <TableRow key={`${u.source}-${u.id}`} className="group hover:bg-muted/10 transition-colors">
-                                        <TableCell className="font-bold uppercase tracking-tight text-sm pl-6">{u.username}</TableCell>
-                                        <TableCell>
-                                            <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase ring-1 ring-inset ${u.role === 'manager' ? 'bg-amber-50 text-amber-600 ring-amber-500/20' :
-                                                    u.role === 'doctor' ? 'bg-blue-50 text-blue-600 ring-blue-500/20' :
-                                                        'bg-emerald-50 text-emerald-600 ring-emerald-500/20'
-                                                }`}>
-                                                {u.role === 'manager' ? 'Manager' : u.role === 'doctor' ? 'Médecin' : 'Accueil'}
-                                            </span>
+                                        <TableCell className="pl-6">
+                                            {editingId === u.id ? (
+                                                <Input
+                                                    value={editUsername}
+                                                    onChange={e => setEditUsername(e.target.value)}
+                                                    className="h-8 text-sm bg-white"
+                                                />
+                                            ) : (
+                                                <span className="font-bold uppercase tracking-tight text-sm">{u.username}</span>
+                                            )}
                                         </TableCell>
                                         <TableCell>
-                                            <code className="text-xs bg-muted px-2 py-1 rounded select-all font-mono">{u.password}</code>
+                                            {editingId === u.id && u.source === 'roles' ? (
+                                                <Select value={editRole as any} onValueChange={(v: any) => setEditRole(v)}>
+                                                    <SelectTrigger className="h-8 text-sm bg-white"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="receptionist">Accueil</SelectItem>
+                                                        <SelectItem value="manager">Manager</SelectItem>
+                                                        <SelectItem value="admin">Admin</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            ) : (
+                                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase ring-1 ring-inset ${u.role === 'manager' || u.role === 'admin' ? 'bg-amber-50 text-amber-600 ring-amber-500/20' :
+                                                    u.role === 'doctor' ? 'bg-blue-50 text-blue-600 ring-blue-500/20' :
+                                                        'bg-emerald-50 text-emerald-600 ring-emerald-500/20'
+                                                    }`}>
+                                                    {u.role === 'manager' ? 'Manager' : u.role === 'admin' ? 'Admin' : u.role === 'doctor' ? 'Médecin' : 'Accueil'}
+                                                </span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {editingId === u.id ? (
+                                                <Input
+                                                    value={editPassword}
+                                                    onChange={e => setEditPassword(e.target.value)}
+                                                    className="h-8 text-sm bg-white font-mono"
+                                                />
+                                            ) : (
+                                                <code className="text-xs bg-muted px-2 py-1 rounded select-all font-mono">{u.password}</code>
+                                            )}
                                         </TableCell>
                                         <TableCell className="text-[10px] font-bold text-muted-foreground uppercase">
                                             {u.role === 'doctor' && `Init: ${u.initial}`}
                                         </TableCell>
                                         <TableCell>
-                                            <div className="flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
-                                                    onClick={() => handleDeleteUser(u)}
-                                                    disabled={u.username === 'admin'}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                            <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                {editingId === u.id ? (
+                                                    <>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 px-2 text-[10px] font-bold"
+                                                            onClick={() => setEditingId(null)}
+                                                        >
+                                                            ANNULER
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            className="h-8 px-2 text-[10px] font-bold"
+                                                            disabled={isUpdating}
+                                                            onClick={() => handleUpdateUser(u)}
+                                                        >
+                                                            SAUVER
+                                                        </Button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+                                                            onClick={() => startEditing(u)}
+                                                        >
+                                                            <Key className="h-4 w-4" />
+                                                        </Button>
+                                                    </>
+                                                )}
                                             </div>
                                         </TableCell>
                                     </TableRow>
