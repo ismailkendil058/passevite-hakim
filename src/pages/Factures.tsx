@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Plus, FileText, Calendar, Search, Download, Trash2, Tag, Filter } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Calendar, Search, Download, Trash2, Tag, Filter, List } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -93,19 +93,12 @@ const Factures = () => {
             <header className="flex items-center justify-between p-3 sm:p-4 border-b sticky top-0 bg-background z-10">
                 <div className="flex items-center gap-3">
                     <Button asChild variant="ghost" size="icon" className="h-8 w-8">
-                        <Link to="/manager/depenses"><ArrowLeft className="h-4 w-4" /></Link>
+                        <Link to="/inventaire"><ArrowLeft className="h-4 w-4" /></Link>
                     </Button>
                     <div>
                         <h1 className="text-lg sm:text-xl font-bold text-foreground italic leading-none">PasseVite</h1>
                         <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Gestion Factures</p>
                     </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button asChild variant="default" size="sm" className="h-8 sm:h-9 px-3 gap-1 rounded-full font-bold uppercase tracking-widest text-[10px]">
-                        <Link to="/manager/factures/ajouter">
-                            <Plus className="h-3.5 w-3.5" /> Facture
-                        </Link>
-                    </Button>
                 </div>
             </header>
 

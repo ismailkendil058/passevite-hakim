@@ -29,6 +29,8 @@ const LoginMedecin = lazy(() => import("./pages/LoginMedecin"));
 const MedecinDashboard = lazy(() => import("./pages/MedecinDashboard"));
 const UserManager = lazy(() => import("./pages/UserManager"));
 const LaboPage = lazy(() => import("./pages/LaboPage"));
+const Inventaire = lazy(() => import("./pages/Inventaire"));
+
 
 
 const LoadingScreen = () => (
@@ -110,9 +112,13 @@ const App = () => (
             <Route path="/accueil/factures/ajouter" element={
               <ProtectedRoute requiredRoles={['manager', 'receptionist', 'admin']}><AjouterFacture /></ProtectedRoute>
             } />
+            <Route path="/inventaire" element={
+              <ProtectedRoute requiredRoles={['manager', 'receptionist', 'admin']}><Inventaire /></ProtectedRoute>
+            } />
             <Route path="/labo" element={
               <ProtectedRoute requiredRoles={['manager', 'receptionist', 'admin']}><LaboPage /></ProtectedRoute>
             } />
+
 
 
 

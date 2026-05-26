@@ -295,7 +295,7 @@ export default function LaboPage() {
             <header className="flex items-center justify-between p-3 sm:p-4 border-b sticky top-0 bg-background z-10 shadow-sm">
                 <div className="flex items-center gap-3">
                     <Button variant="ghost" size="icon" asChild className="h-8 w-8 mb-1">
-                        <Link to="/accueil">
+                        <Link to="/">
                             <ChevronLeft className="h-4 w-4" />
                         </Link>
                     </Button>

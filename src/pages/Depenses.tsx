@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 
 interface Expense {
     id: string;
-    description: string;
+    title: string;
     amount: number;
     date: string;
     category: string;
@@ -54,6 +54,7 @@ const Depenses = () => {
         if (error) {
             console.error('Error fetching expenses:', error);
         } else {
+            // @ts-ignore - The database uses 'title' but types.ts is out of sync
             setExpenses(data || []);
         }
         setLoading(false);
@@ -70,12 +71,13 @@ const Depenses = () => {
             return;
         }
 
+        // @ts-ignore - The database uses 'title' but types.ts is out of sync
         const { error } = await supabase.from('expenses').insert({
-            description,
+            title: description,
             amount: parseFloat(amount),
             date: expenseDate,
             category,
-            created_by: user?.id
+            created_by: user?.id || 'system'
         });
 
         if (error) {
@@ -102,7 +104,7 @@ const Depenses = () => {
 
     const filteredExpenses = useMemo(() => {
         return expenses.filter(e =>
-            e.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             e.category?.toLowerCase().includes(searchQuery.toLowerCase())
         );
     }, [expenses, searchQuery]);
@@ -114,7 +116,7 @@ const Depenses = () => {
     const exportExcel = () => {
         const headers = ['Description', 'Montant', 'Catégorie', 'Date'];
         const rows = filteredExpenses.map(e => [
-            e.description,
+            e.title,
             e.amount,
             e.category || '',
             format(new Date(e.date), 'dd/MM/yyyy'),
@@ -265,7 +267,7 @@ const Depenses = () => {
                                 <CardContent className="p-3 space-y-1.5">
                                     <div className="flex justify-between items-start gap-2">
                                         <div className="min-w-0">
-                                            <p className="font-bold text-foreground text-sm truncate uppercase tracking-tight">{e.description}</p>
+                                            <p className="font-bold text-foreground text-sm truncate uppercase tracking-tight">{e.title}</p>
                                             <p className="text-[10px] text-muted-foreground uppercase font-medium">{e.category || 'Non classé'}</p>
                                         </div>
                                         <div className="text-right shrink-0">
@@ -313,7 +315,7 @@ const Depenses = () => {
                                 ) : (
                                     filteredExpenses.map(e => (
                                         <TableRow key={e.id} className="group hover:bg-muted/20">
-                                            <TableCell className="font-bold uppercase tracking-tight text-sm">{e.description}</TableCell>
+                                            <TableCell className="font-bold uppercase tracking-tight text-sm">{e.title}</TableCell>
                                             <TableCell className="text-xs text-muted-foreground font-medium uppercase">{e.category || '—'}</TableCell>
                                             <TableCell className="text-right font-black text-destructive text-sm">-{e.amount?.toLocaleString()} DZD</TableCell>
                                             <TableCell className="text-right text-xs font-medium">

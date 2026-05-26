@@ -25,7 +25,7 @@ const AjouterFacture = () => {
     const [loading, setLoading] = useState(false);
 
     const isReceptionistMode = location.pathname.includes('/accueil');
-    const backPath = isReceptionistMode ? '/accueil' : '/manager/factures';
+    const backPath = isReceptionistMode ? '/accueil' : '/inventaire';
 
     // Section 1
     const [supplierName, setSupplierName] = useState('');

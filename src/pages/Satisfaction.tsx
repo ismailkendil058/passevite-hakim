@@ -17,7 +17,7 @@ const Satisfaction = () => {
     } catch (error) {
       console.error('An unexpected error occurred:', error);
     } finally {
-      navigate('/avis-google');
+      window.location.href = 'https://search.google.com/local/writereview?placeid=ChIJo2JLcgBbjhIRCTKL6gk5olk';
     }
   };
 

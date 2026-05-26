@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { FeedbackStats } from '@/components/FeedbackStats';
-import { LogOut, Search, Download, Users, DollarSign, Stethoscope, Calendar, ShieldCheck } from 'lucide-react';
+import { LogOut, Search, Download, Users, DollarSign, Stethoscope, Calendar, ShieldCheck, List, Package } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
