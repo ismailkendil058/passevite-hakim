@@ -30,18 +30,15 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 interface LaboOrder {
     id: string;
-    date: string;
-    nom_prenom: string;
-    type_prothese: string;
+    date_reception: string;
+    client_name: string;
+    type_travail: string;
     teinte: string;
-    laboratoire: string;
-    n_fiche: string;
-    statut: 'En cours' | 'Au labo' | 'Livré' | 'Problème';
+    status: 'En cours' | 'Au labo' | 'Livré' | 'Problème';
     devis: number;
     versement: number;
     reste: number;
-    telephone: string;
-    observation: string;
+    patient_phone: string;
     doctor_id: string;
     created_at: string;
 }
@@ -104,13 +101,26 @@ const MedecinDashboard = () => {
     const [editingLaboId, setEditingLaboId] = useState<string | null>(null);
     const [customLabo, setCustomLabo] = useState(false);
     const [laboFormData, setLaboFormData] = useState<Partial<LaboOrder>>({
-        date: format(new Date(), 'yyyy-MM-dd'),
-        statut: 'En cours',
+        date_reception: format(new Date(), 'yyyy-MM-dd'),
+        status: 'En cours',
         devis: 0,
         versement: 0
     });
     const [laboPaymentAmount, setLaboPaymentAmount] = useState('');
     const [laboPaymentOrder, setLaboPaymentOrder] = useState<LaboOrder | null>(null);
+
+    // Helper for formatting frequency line
+    const formatFrequencyLine = (count: number, timing: string, unit: string = 'comprimé(s)') => {
+        if (!count) return '';
+        const timingMap: Record<string, string> = {
+            'avant': 'avant les repas',
+            'apres': 'après les repas',
+            'pendant': 'pendant les repas',
+            'soir': 'le soir au coucher'
+        };
+        const tText = timingMap[timing] || '';
+        return `${count} ${unit} ${tText}`.trim();
+    };
 
     // ORDONNANCE MODAL STATE
     const [showOrdonnanceModal, setShowOrdonnanceModal] = useState(false);
@@ -118,10 +128,105 @@ const MedecinDashboard = () => {
         patient_name: '',
         age: '',
         date: format(new Date(), 'yyyy-MM-dd'),
-        medications: [{ name: '', dosage: '', duration: '', instructions: '' }],
+        medications: [{ name: '', dosage: '', duree: '', frequency_count: 1, frequency_unit: 'comprimé(s)', timing: 'apres', instructions: '' }],
         notes: ''
     });
     const [savingOrdonnance, setSavingOrdonnance] = useState(false);
+
+    // Available Medications from DB
+    const [dbMedications, setDbMedications] = useState<any[]>([]);
+    const [showAddMedModal, setShowAddMedModal] = useState(false);
+    const [newMedFormData, setNewMedFormData] = useState({
+        name: '',
+        dosage: '',
+        duree: '',
+        frequency_count: 1,
+        frequency_unit: 'comprimé(s)',
+        timing: 'apres'
+    });
+    const [savingNewMed, setSavingNewMed] = useState(false);
+
+    const fetchMeds = async () => {
+        try {
+            const { data, error } = await supabase.from('medications').select('*').order('name');
+            if (error) throw error;
+            if (data) {
+                setDbMedications(data);
+            }
+        } catch (err) {
+            console.error('Error fetching medications:', err);
+            toast.error('Erreur lors du chargement des médicaments');
+        }
+    };
+
+    useEffect(() => {
+        fetchMeds();
+    }, []);
+
+    const handleSaveNewMed = async () => {
+        if (!newMedFormData.name) {
+            toast.error('Le nom du médicament est obligatoire');
+            return;
+        }
+        setSavingNewMed(true);
+        try {
+            const { error } = await supabase.from('medications').insert([
+                {
+                    name: newMedFormData.name,
+                }
+            ]);
+
+            if (error) throw error;
+
+            toast.success('Médicament ajouté au catalogue');
+            setShowAddMedModal(false);
+            setNewMedFormData({
+                name: '',
+                dosage: '',
+                duree: '',
+                frequency_count: 1,
+                frequency_unit: 'comprimé(s)',
+                timing: 'apres'
+            });
+            await fetchMeds();
+        } catch (err: any) {
+            toast.error('Erreur: ' + err.message);
+        } finally {
+            setSavingNewMed(false);
+        }
+    };
+
+    const hydrateMedicationFromVariant = (med: any, variantIdx: number, itemIdx: number) => {
+        if (!med) return;
+
+        const variants = med.variants || [];
+        const variant = variants[variantIdx] || null;
+
+        // Use variant data if available, otherwise fall back to direct default columns
+        const dosage = variant?.dosage || med.dosage || '';
+        const duree = variant?.duration || med.duree || '';
+        const frequency_count = variant?.frequency_count ?? med.frequency_count ?? 1;
+        const frequency_unit = variant?.frequency_unit || med.frequency_unit || 'comprimé(s)';
+        const timing = variant?.timing || med.timing || 'apres';
+
+        console.log('[Hydrate]', med.name, { dosage, duree, frequency_count, frequency_unit, timing });
+
+        // Functional update avoids stale closure issues
+        setOrdonnanceFormData(prev => {
+            const newMeds = [...prev.medications];
+            // @ts-ignore
+            newMeds[itemIdx] = {
+                ...newMeds[itemIdx],
+                name: med.name,
+                dosage,
+                duree,
+                frequency_count,
+                frequency_unit,
+                timing
+            };
+            return { ...prev, medications: newMeds };
+        });
+    };
 
 
     // Fetch Patient History (Appointments & Ordonnances)
@@ -131,7 +236,7 @@ const MedecinDashboard = () => {
         queryFn: async () => {
             const [appts, ords] = await Promise.all([
                 supabase.from('appointments').select('*, doctor:doctors(*)').eq('client_phone', selectedPatient.phone).order('appointment_at', { ascending: false }),
-                supabase.from('prescriptions').select('*').eq('patient_name', selectedPatient.client_name).order('prescription_date', { ascending: false })
+                supabase.from('prescriptions').select('*').eq('patient_name', selectedPatient.client_name).order('created_at', { ascending: false })
             ]);
             return { appointments: appts.data || [], ordonnances: ords.data || [] };
         }
@@ -145,7 +250,7 @@ const MedecinDashboard = () => {
                 .from('prescriptions')
                 .select('*')
                 .eq('doctor_id', doctorInfo.id)
-                .order('prescription_date', { ascending: false });
+                .order('created_at', { ascending: false });
             if (rxData) setPrescriptions(rxData);
 
             const { data: aptData } = await supabase
@@ -189,7 +294,7 @@ const MedecinDashboard = () => {
                 doctor_id: doctorInfo.id,
                 patient_name: ordonnanceFormData.patient_name,
                 age: ordonnanceFormData.age ? parseInt(ordonnanceFormData.age) : null,
-                prescription_date: ordonnanceFormData.date,
+                prescription_date: ordonnanceFormData.date || format(new Date(), 'yyyy-MM-dd'),
                 medications: ordonnanceFormData.medications,
                 notes: ordonnanceFormData.notes
             });
@@ -202,7 +307,7 @@ const MedecinDashboard = () => {
                 patient_name: '',
                 age: '',
                 date: format(new Date(), 'yyyy-MM-dd'),
-                medications: [{ name: '', dosage: '', duration: '', instructions: '' }],
+                medications: [{ name: '', dosage: '', duree: '', frequency_count: 1, frequency_unit: 'comprimé(s)', timing: 'apres', instructions: '' }],
                 notes: ''
             });
             fetchDashboardData();
@@ -217,7 +322,7 @@ const MedecinDashboard = () => {
     const addMedication = () => {
         setOrdonnanceFormData({
             ...ordonnanceFormData,
-            medications: [...ordonnanceFormData.medications, { name: '', dosage: '', duration: '', instructions: '' }]
+            medications: [...ordonnanceFormData.medications, { name: '', dosage: '', duree: '', frequency_count: 1, frequency_unit: 'comprimé(s)', timing: 'apres', instructions: '' }]
         });
     };
 
@@ -240,119 +345,315 @@ const MedecinDashboard = () => {
         if (!printWindow) return;
 
         const medsHtml = rx.medications.map((m: any) => `
-            <div style="margin-bottom: 30px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-end;">
-                    <div style="font-weight: 900; font-size: 28px; color: #0f172a; text-transform: uppercase;">${m.name}</div>
-                    <div style="font-weight: 700; font-size: 20px; color: #334155;">${m.dosage}</div>
+            <div style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 0.5px solid #f0f0f0;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <span style="font-size: 20px; font-weight: 900; color: #000; text-transform: uppercase; font-family: 'DM Sans', sans-serif;">${m.name}</span>
+                    <span style="font-size: 14px; font-weight: 700; color: #000; background: #f4f1f9; padding: 4px 10px; border-radius: 6px; font-family: 'DM Sans', sans-serif;">Qsp: ${m.duree || m.duration || '--'}</span>
                 </div>
-                <div style="font-size: 18px; color: #64748b; margin-top: 8px; font-weight: 500;">
-                    ${m.instructions ? `<span style="font-style: italic;">${m.instructions}</span>` : ''}
-                    ${m.duration ? `<span style="margin-left: 20px; border-left: 2px solid #e2e8f0; padding-left: 20px;">Pendant ${m.duration}</span>` : ''}
+                <div style="font-size: 16px; color: #000; font-weight: 500; display: flex; gap: 10px; align-items: center; font-family: 'DM Sans', sans-serif;">
+                    <span style="color: #000;">${m.dosage}</span>
+                    <span style="color: #ccc;">•</span>
+                    <span style="color: #000;">${m.frequency_count ? formatFrequencyLine(m.frequency_count, m.timing, m.frequency_unit) : (m.instructions || '')}</span>
                 </div>
             </div>
         `).join('');
 
         printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Ordonnance - ${rx.patient_name}</title>
-                    <style>
-                        @page { 
-                            size: A3 portrait; 
-                            margin: 2cm; 
-                        }
-                        body { 
-                            font-family: 'Inter', system-ui, sans-serif; 
-                            margin: 0; 
-                            padding: 0; 
-                            color: #1a202c; 
-                            background: white;
-                        }
-                        .container { 
-                            max-width: 1000px; 
-                            margin: 0 auto; 
-                            padding: 50px;
-                        }
-                        .header { 
-                            text-align: center; 
-                            margin-bottom: 80px; 
-                            border-bottom: 4px solid #3b82f6; 
-                            padding-bottom: 30px; 
-                        }
-                        .clinic-name { font-size: 48px; font-weight: 900; color: #1e40af; margin: 0; }
-                        .doctor-name { font-size: 24px; font-weight: 700; color: #64748b; margin-top: 10px; }
-                        .info-grid { 
-                            display: grid; 
-                            grid-template-cols: 1fr 1fr; 
-                            gap: 30px; 
-                            margin-bottom: 60px; 
-                            font-size: 20px;
-                        }
-                        .prescription-title { 
-                            font-size: 40px; 
-                            font-weight: 900; 
-                            text-align: center; 
-                            margin-bottom: 60px; 
-                            text-transform: uppercase; 
-                            letter-spacing: 5px;
-                            color: #3b82f6;
-                        }
-                        .medications { margin-bottom: 100px; }
-                        .footer { 
-                            text-align: center; 
-                            margin-top: 100px; 
-                            font-size: 14px; 
-                            color: #94a3b8; 
-                            border-top: 1px solid #e2e8f0; 
-                            padding-top: 20px; 
-                        }
-                        .signature {
-                             text-align: right;
-                             margin-top: 50px;
-                             font-weight: bold;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="header">
-                            <h1 class="clinic-name">CD DENTAL CLINIC</h1>
-                            <div class="doctor-name">Dr. ${doctorInfo?.name || ''}</div>
-                            <div style="font-size: 16px; color: #94a3b8; margin-top: 10px;">Chirurgien Dentiste</div>
-                        </div>
-                        
-                        <div class="info-grid">
-                            <div><strong>Patient:</strong> ${rx.patient_name}</div>
-                            <div style="text-align: right;"><strong>Date:</strong> ${new Date(rx.prescription_date).toLocaleDateString('fr-FR')}</div>
-                            ${rx.age ? `<div><strong>Âge:</strong> ${rx.age} ans</div>` : ''}
-                        </div>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ordonnance — ${rx.patient_name}</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-                        <div class="prescription-title">Ordonnance</div>
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #ede8e0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 0;
+    }
 
-                        <div class="medications">
-                            ${medsHtml}
-                        </div>
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
 
-                        ${rx.notes ? `<div style="margin-top: 40px; padding: 20px; background: #f8fafc; border-radius: 15px; font-size: 18px;"><strong>Note:</strong> ${rx.notes}</div>` : ''}
+    /* ── DECORATIVE BOTTOM WAVE (SVG) ── */
+    .bottom-deco {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      pointer-events: none;
+    }
 
-                        <div class="signature">
-                            <p>Cachet et Signature</p>
-                            <div style="height: 100px;"></div>
-                        </div>
+    /* ── INNER CONTENT ── */
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 14mm 18mm 52mm 18mm;
+      position: relative;
+      z-index: 1;
+    }
 
-                        <div class="footer">
-                             CD DENTAL CLINIC - Votre sourire, notre engagement.
-                        </div>
-                    </div>
-                    <script>
-                        window.onload = () => {
-                            window.print();
-                            // window.close();
-                        };
-                    </script>
-                </body>
-            </html>
-        `);
+    /* ── HEADER: centered ── */
+    header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding-bottom: 10mm;
+    }
+
+    .logo-container {
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .logo-container img {
+      height: 65px;
+      max-width: 140px;
+      object-fit: contain;
+    }
+
+    .doctor-name {
+      font-family: 'DM Serif Display', serif;
+      font-style: italic;
+      font-size: 28px;
+      color: #5b2d8e;
+      letter-spacing: 0.01em;
+      line-height: 1.2;
+      margin-bottom: 5px;
+    }
+
+    .doctor-title {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #a89abf;
+      font-weight: 400;
+    }
+
+    .header-divider {
+      width: 40mm;
+      height: 0.5px;
+      background: linear-gradient(to right, transparent, #c8b8e8, transparent);
+      margin: 8px auto 0;
+    }
+
+    /* ── META ROW ── */
+    .meta-row {
+      display: flex;
+      gap: 16px;
+      margin: 8mm 0 6mm;
+    }
+
+    .meta-field { flex: 1; }
+    .meta-field.small { flex: 0 0 28mm; }
+
+    .meta-label {
+      font-size: 8px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #bbb;
+      margin-bottom: 4px;
+    }
+
+    .meta-line {
+      border: none;
+      border-bottom: 0.5px solid #ddd;
+      width: 100%;
+      padding: 4px 0;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      color: #333;
+      background: transparent;
+      outline: none;
+    }
+
+    .meta-line:focus { border-bottom-color: #5b2d8e; }
+
+    /* ── Rx HEADER ── */
+    .rx-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 4mm 0 5mm;
+    }
+
+    .rx-symbol {
+      font-family: 'DM Serif Display', serif;
+      font-style: italic;
+      font-size: 34px;
+      color: #5b2d8e;
+      line-height: 1;
+    }
+
+    .rx-word {
+      font-size: 9px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: #c0b0d8;
+    }
+
+    .rx-line {
+      flex: 1;
+      height: 0.5px;
+      background: #ede8f5;
+    }
+
+    /* ── WRITE AREA ── */
+    .write-area { flex: 1; margin-top: 5mm; }
+
+    /* ── NOTES ── */
+    .notes-section {
+      margin-top: 6mm;
+      padding-top: 5mm;
+      border-top: 0.5px solid #ede8f0;
+    }
+
+    .notes-label {
+      font-size: 8px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #ccc;
+      margin-bottom: 3mm;
+    }
+
+    /* ── FOOTER (absolute, inside wave) ── */
+    .footer-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      z-index: 2;
+      padding: 0 18mm 8mm 18mm;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 3px;
+    }
+
+    .footer-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 10px;
+      color: #8a7a9e;
+      font-weight: 400;
+    }
+
+    .footer-icon {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      opacity: 0.7;
+    }
+
+
+
+    @media print {
+      body { background: white; padding: 0; }
+      .page { box-shadow: none; width: 100%; }
+      .meta-line { border-bottom: none; }
+    }
+    @page { size: A4; margin: 0; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- BOTTOM WAVE DECORATION -->
+  <svg class="bottom-deco" viewBox="0 0 794 160" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+    <path d="M0,120 C200,60 400,150 794,80 L794,160 L0,160 Z" fill="#ede8f5" opacity="0.55"/>
+    <path d="M0,125 C200,65 420,155 794,82" fill="none" stroke="#b89fd4" stroke-width="0.8" opacity="0.6"/>
+    <path d="M0,130 C200,70 420,160 794,88" fill="none" stroke="#d4c4a8" stroke-width="0.5" opacity="0.5"/>
+  </svg>
+
+
+
+  <!-- FOOTER CONTACT -->
+  <div class="footer-bar" style="padding-bottom: 12mm;">
+    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; border-top: 0.5px solid rgba(184, 159, 212, 0.4); padding-top: 12px;">
+      <div class="footer-item" style="color: #5b2d8e; font-family: 'DM Serif Display', serif; font-style: italic; font-weight: 400; font-size: 16px; letter-spacing: 0.02em;">
+        <svg class="footer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: #5b2d8e; width: 18px; height: 18px; margin-bottom: 2px;"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
+        0796 66 73 49
+      </div>
+      <div class="footer-item" style="color: #5b2d8e; font-family: 'DM Serif Display', serif; font-style: italic; font-weight: 400; font-size: 15px; letter-spacing: 0.01em;">
+        <svg class="footer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="color: #b89fd4; width: 16px; height: 16px; margin-bottom: 2px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        Zone Aissat Mustapha Cité 90 Lgts "ENCG", Bt 8 N° 01, Réghaia - Alger
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="content">
+
+    <!-- HEADER centered -->
+    <header>
+      <div class="logo-container">
+        <img src="/Dr hakim.png" alt="Dr. Hakim">
+      </div>
+      <div class="doctor-name">${doctorInfo?.name || 'Hakim'}</div>
+      <div class="doctor-title">Chirurgien-Dentiste &nbsp;·&nbsp; CD Dental Clinic</div>
+      <div class="header-divider"></div>
+    </header>
+
+    <!-- META -->
+    <div style="display:flex; align-items:flex-end; gap:24px; margin:8mm 0 6mm; width:100%;">
+      <div style="flex:3;">
+        <div class="meta-label">Nom du patient</div>
+        <div class="meta-line">${rx.patient_name}</div>
+      </div>
+      <div style="flex:1;">
+        <div class="meta-label">Âge</div>
+        <div class="meta-line">${rx.age || '--'} ans</div>
+      </div>
+      <div style="flex:1.5;">
+        <div class="meta-label">Date</div>
+        <div class="meta-line">${new Date(rx.prescription_date || rx.created_at).toLocaleDateString('fr-FR')}</div>
+      </div>
+    </div>
+
+
+
+    <div class="write-area">
+      ${medsHtml}
+    </div>
+
+    ${rx.notes ? `
+    <div class="notes-section">
+      <div class="notes-label">Notes &amp; Observations</div>
+      <div style="font-size: 13px; color: #555; line-height: 1.6; font-style: italic;">
+        ${rx.notes}
+      </div>
+    </div>
+    ` : ''}
+
+  </div><!-- /content -->
+</div>
+<script>
+  window.onload = () => {
+    window.print();
+    setTimeout(() => { window.close(); }, 500);
+  };
+</script>
+</body>
+</html>
+`);
         printWindow.document.close();
     };
 
@@ -365,17 +666,21 @@ const MedecinDashboard = () => {
             .from('labo_orders')
             .select('*')
             .eq('doctor_id', doctorInfo.id)
-            .gte('date', dateFrom)
-            .lte('date', dateTo)
-            .order('date', { ascending: false });
+            .gte('date_reception', dateFrom)
+            .lte('date_reception', dateTo)
+            .order('date_reception', { ascending: false });
 
         const { data, error } = await query;
         if (error) {
             toast.error('Erreur lors du chargement des commandes labo');
             console.error(error);
         } else {
-            // @ts-ignore
-            setOrders(data as LaboOrder[]);
+            // Calculate reste on the fly
+            const mapped = (data || []).map((o: any) => ({
+                ...o,
+                reste: (o.devis || 0) - (o.versement || 0)
+            }));
+            setOrders(mapped as LaboOrder[]);
         }
         setLaboLoading(false);
     };
@@ -400,12 +705,12 @@ const MedecinDashboard = () => {
     const filteredLaboOrders = useMemo(() => {
         return orders.filter(o => {
             const matchSearch = !laboSearchQuery ||
-                o.nom_prenom?.toLowerCase().includes(laboSearchQuery.toLowerCase()) ||
-                o.type_prothese?.toLowerCase().includes(laboSearchQuery.toLowerCase()) ||
-                o.laboratoire?.toLowerCase().includes(laboSearchQuery.toLowerCase()) ||
-                o.n_fiche?.toLowerCase().includes(laboSearchQuery.toLowerCase());
+                o.client_name?.toLowerCase().includes(laboSearchQuery.toLowerCase()) ||
+                o.type_travail?.toLowerCase().includes(laboSearchQuery.toLowerCase());
+            // o.laboratoire?.toLowerCase().includes(laboSearchQuery.toLowerCase()) ||
+            // o.n_fiche?.toLowerCase().includes(laboSearchQuery.toLowerCase());
 
-            const matchStatus = laboStatusFilter === 'Tous' || o.statut === laboStatusFilter;
+            const matchStatus = laboStatusFilter === 'Tous' || o.status === laboStatusFilter;
 
             return matchSearch && matchStatus;
         });
@@ -421,7 +726,7 @@ const MedecinDashboard = () => {
             totalDevis += (o.devis || 0);
             totalCashed += (o.versement || 0);
             totalReste += (o.reste || 0);
-            if (o.statut === 'Au labo') waitingLabCount++;
+            if (o.status === 'Au labo') waitingLabCount++;
         });
 
         return { totalDevis, totalCashed, totalReste, waitingLabCount };
@@ -429,24 +734,20 @@ const MedecinDashboard = () => {
 
     const handleLaboSave = async () => {
         try {
-            const finalLaboratoire = laboFormData.laboratoire;
             const payload = {
-                date: laboFormData.date || format(new Date(), 'yyyy-MM-dd'),
-                nom_prenom: laboFormData.nom_prenom || '',
-                type_prothese: laboFormData.type_prothese || '',
+                date_reception: laboFormData.date_reception || format(new Date(), 'yyyy-MM-dd'),
+                client_name: laboFormData.client_name || '',
+                type_travail: laboFormData.type_travail || '',
                 teinte: laboFormData.teinte || null,
-                laboratoire: finalLaboratoire || '',
-                n_fiche: laboFormData.n_fiche || null,
-                statut: laboFormData.statut || 'En cours',
+                status: laboFormData.status || 'En cours',
                 devis: laboFormData.devis || 0,
                 versement: laboFormData.versement || 0,
-                telephone: laboFormData.telephone || null,
-                observation: laboFormData.observation || null,
+                patient_phone: laboFormData.patient_phone || null,
                 doctor_id: doctorInfo?.id
             };
 
-            if (!payload.nom_prenom || !payload.type_prothese || !payload.laboratoire) {
-                toast.error('Veuillez remplir les champs obligatoires (Nom, Type, Laboratoire)');
+            if (!payload.client_name || !payload.type_travail) {
+                toast.error('Veuillez remplir les champs obligatoires (Nom, Type)');
                 return;
             }
 
@@ -483,9 +784,9 @@ const MedecinDashboard = () => {
     const handleLaboStatusChange = async (id: string, newStatus: string) => {
         try {
             // Optimistic update
-            setOrders(orders.map(o => o.id === id ? { ...o, statut: newStatus as any } : o));
+            setOrders(orders.map(o => o.id === id ? { ...o, status: newStatus as any } : o));
             // @ts-ignore
-            const { error } = await supabase.from('labo_orders').update({ statut: newStatus }).eq('id', id);
+            const { error } = await supabase.from('labo_orders').update({ status: newStatus }).eq('id', id);
             if (error) throw error;
             toast.success('Statut mis à jour');
         } catch (error: any) {
@@ -503,17 +804,17 @@ const MedecinDashboard = () => {
                 return;
             }
 
-            const newVersement = (laboPaymentOrder.versement || 0) + amount;
+            const newVal = (laboPaymentOrder.versement || 0) + amount;
 
             // Optimistic update
             setOrders(orders.map(o => o.id === laboPaymentOrder.id ? {
                 ...o,
-                versement: newVersement,
-                reste: (o.devis || 0) - newVersement
+                versement: newVal,
+                reste: (o.devis || 0) - newVal
             } : o));
 
             // @ts-ignore
-            const { error } = await supabase.from('labo_orders').update({ versement: newVersement }).eq('id', laboPaymentOrder.id);
+            const { error } = await supabase.from('labo_orders').update({ versement: newVal }).eq('id', laboPaymentOrder.id);
             if (error) throw error;
 
             toast.success('Versement ajouté');
@@ -530,48 +831,47 @@ const MedecinDashboard = () => {
         setEditingLaboId(null);
         setCustomLabo(false);
         setLaboFormData({
-            date: format(new Date(), 'yyyy-MM-dd'),
-            statut: 'En cours',
+            date_reception: format(new Date(), 'yyyy-MM-dd'),
+            status: 'En cours',
             devis: 0,
             versement: 0,
-            nom_prenom: '',
-            type_prothese: '',
+            client_name: '',
+            type_travail: '',
             teinte: '',
-            laboratoire: '',
-            n_fiche: '',
-            telephone: '',
-            observation: ''
+            patient_phone: '',
         });
     };
 
     const openLaboEdit = (order: LaboOrder) => {
         setEditingLaboId(order.id);
-        if (!DEFAULT_LABOS.includes(order.laboratoire)) {
-            setCustomLabo(true);
-        } else {
-            setCustomLabo(false);
-        }
         setLaboFormData({
-            ...order
+            date_reception: order.date_reception,
+            client_name: order.client_name,
+            type_travail: order.type_travail,
+            teinte: order.teinte,
+            status: order.status,
+            devis: order.devis,
+            versement: order.versement,
+            patient_phone: order.patient_phone,
         });
         setShowLaboAddModal(true);
     };
 
     const getLaboRowClass = (order: LaboOrder) => {
-        if (order.statut === 'Livré' && order.reste === 0) {
+        if (order.status === 'Livré' && order.reste === 0) {
             return 'bg-green-50/50 border-l-4 border-green-500';
         }
-        if (order.statut === 'Au labo') {
+        if (order.status === 'Au labo') {
             return 'bg-yellow-50/50 border-l-4 border-yellow-400';
         }
-        if (order.statut === 'Problème' || (order.statut === 'Livré' && order.reste > 0)) {
+        if (order.status === 'Problème' || (order.status === 'Livré' && order.reste > 0)) {
             return 'bg-red-50/50 border-l-4 border-red-500';
         }
         return '';
     };
 
-    const getLaboStatutBadge = (statut: string) => {
-        switch (statut) {
+    const getLaboStatutBadge = (status: string) => {
+        switch (status) {
             case 'Livré':
                 return <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">Livré</Badge>;
             case 'Au labo':
@@ -690,10 +990,90 @@ const MedecinDashboard = () => {
 
                     {/* ORDONNANCES CONTENT */}
                     <TabsContent value="ordonnances" className="mt-6 animate-in fade-in slide-in-from-bottom-2">
-                        <div className="flex flex-col items-center justify-center py-20 bg-muted/10 rounded-3xl border-2 border-dashed border-muted">
-                            <FileText className="h-16 w-16 text-muted-foreground/30 mb-4" />
-                            <h2 className="text-xl font-bold text-muted-foreground">Pas encore prêt</h2>
-                            <p className="text-sm text-muted-foreground/60 font-medium">Cette section est en cours de développement.</p>
+                        <div className="space-y-6">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                <h1 className="text-2xl font-black italic text-slate-800">Historique Ordonnances</h1>
+                                <div className="flex items-center gap-3 w-full sm:w-auto">
+                                    <div className="relative flex-1 sm:w-80">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                        <Input
+                                            placeholder="Rechercher patient ou médicament..."
+                                            value={searchOrdonnance}
+                                            onChange={e => setSearchOrdonnance(e.target.value)}
+                                            className="pl-10 h-11 border-slate-200 rounded-xl"
+                                        />
+                                    </div>
+                                    <Button onClick={() => setShowOrdonnanceModal(true)} className="rounded-xl h-11 px-6 shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90">
+                                        <Plus className="h-4 w-4 mr-2" /> Nouvelle
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {loading ? (
+                                    Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-40 bg-slate-100 animate-pulse rounded-3xl" />)
+                                ) : filteredPrescriptions.length === 0 ? (
+                                    <div className="col-span-full py-20 text-center bg-slate-50 rounded-3xl border border-dashed">
+                                        <FileText className="h-12 w-12 text-slate-200 mx-auto mb-4" />
+                                        <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Aucune ordonnance trouvée</p>
+                                    </div>
+                                ) : (
+                                    filteredPrescriptions.map(rx => (
+                                        <Card key={rx.id} className="border-none shadow-premium bg-white group hover:shadow-xl transition-all">
+                                            <CardContent className="p-6">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="h-10 w-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500">
+                                                            <FileText className="h-5 w-5" />
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="font-bold text-slate-800 leading-tight">{rx.patient_name}</h3>
+                                                            <p className="text-[10px] text-slate-400 font-bold uppercase">{format(new Date(rx.prescription_date || rx.created_at), 'dd MMMM yyyy', { locale: fr })}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="opacity-0 group-hover:opacity-100 transition-all flex gap-1">
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600 hover:bg-indigo-50 rounded-lg" onClick={() => handlePrintOrdonnance(rx)}>
+                                                            <Printer className="h-4 w-4" />
+                                                        </Button>
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500 hover:bg-rose-50 rounded-lg">
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle className="font-black italic text-rose-500">Supprimer l'ordonnance ?</AlertDialogTitle>
+                                                                    <AlertDialogDescription className="font-medium">Cette action est irréversible.</AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel className="rounded-xl font-bold">Annuler</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={async () => {
+                                                                        await supabase.from('prescriptions').delete().eq('id', rx.id);
+                                                                        toast.success('Ordonnance supprimée');
+                                                                        fetchDashboardData();
+                                                                    }} className="bg-rose-500 hover:bg-rose-600 rounded-xl font-bold">Confirmer</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-1 mt-4">
+                                                    {rx.medications.slice(0, 3).map((m: any, i: number) => (
+                                                        <div key={i} className="flex justify-between items-center text-xs">
+                                                            <span className="text-slate-600 font-medium">• {m.name}</span>
+                                                            <span className="text-[10px] text-slate-400">{m.dosage}</span>
+                                                        </div>
+                                                    ))}
+                                                    {rx.medications.length > 3 && (
+                                                        <p className="text-[10px] text-primary font-bold mt-2">+{rx.medications.length - 3} autres médicaments</p>
+                                                    )}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))
+                                )}
+                            </div>
                         </div>
                     </TabsContent>
 
@@ -933,71 +1313,54 @@ const MedecinDashboard = () => {
 
                             {/* Table */}
                             <Card className="border-none shadow-premium overflow-hidden bg-white">
-                                <div className="overflow-x-auto min-h-[400px]">
+                                <div className="overflow-x-auto">
                                     <Table>
-                                        <TableHeader className="bg-slate-50/50">
-                                            <TableRow>
-                                                <TableHead className="font-bold text-xs text-center">Date</TableHead>
-                                                <TableHead className="font-bold text-xs text-center">Patient</TableHead>
-                                                <TableHead className="font-bold text-xs text-center">Type / Teinte</TableHead>
-                                                <TableHead className="font-bold text-xs text-center">Labo / Réf.</TableHead>
-                                                <TableHead className="font-bold text-xs text-center">Statut</TableHead>
-                                                <TableHead className="font-bold text-xs text-center">Total (DA)</TableHead>
-                                                <TableHead className="font-bold text-xs text-center">Versé (DA)</TableHead>
-                                                <TableHead className="font-bold text-xs text-center">Reste (DA)</TableHead>
-                                                <TableHead className="font-bold text-xs text-center">Actions</TableHead>
+                                        <TableHeader>
+                                            <TableRow className="border-slate-100 hover:bg-transparent">
+                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date</TableHead>
+                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Patient</TableHead>
+                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Travail</TableHead>
+                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Statut</TableHead>
+                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Devis</TableHead>
+                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Reste</TableHead>
+                                                <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {laboLoading ? (
-                                                <TableRow><TableCell colSpan={9} className="text-center py-12 text-slate-300 uppercase font-black tracking-widest text-xs">Chargement...</TableCell></TableRow>
+                                                <TableRow><TableCell colSpan={7} className="text-center py-10 text-slate-300 font-bold uppercase text-[10px] tracking-widest animate-pulse">Chargement...</TableCell></TableRow>
                                             ) : filteredLaboOrders.length === 0 ? (
-                                                <TableRow><TableCell colSpan={9} className="text-center py-12 text-slate-300 uppercase font-black tracking-widest text-xs">Aucun envoi trouvé</TableCell></TableRow>
+                                                <TableRow><TableCell colSpan={7} className="text-center py-10 text-slate-300 font-bold uppercase text-[10px] tracking-widest">Aucune commande</TableCell></TableRow>
                                             ) : (
                                                 filteredLaboOrders.map(order => (
-                                                    <TableRow key={order.id} className={cn("hover:bg-slate-50 transition-colors", getLaboRowClass(order))}>
-                                                        <TableCell className="text-xs font-medium text-center">{format(new Date(order.date), 'dd/MM/yy')}</TableCell>
-                                                        <TableCell className="text-center">
-                                                            <p className="font-bold text-sm text-slate-800">{order.nom_prenom}</p>
-                                                            {order.telephone && <p className="text-[10px] text-slate-400 font-medium">{order.telephone}</p>}
+                                                    <TableRow key={order.id} className={cn("group transition-colors", getLaboRowClass(order))}>
+                                                        <TableCell className="text-xs font-bold text-slate-500">{format(new Date(order.date_reception), 'dd/MM')}</TableCell>
+                                                        <TableCell>
+                                                            <p className="text-xs font-black text-slate-700">{order.client_name}</p>
+                                                            {order.patient_phone && <p className="text-[9px] text-slate-400 font-bold">{order.patient_phone}</p>}
                                                         </TableCell>
-                                                        <TableCell className="text-center">
-                                                            <p className="text-sm font-medium text-slate-700">{order.type_prothese}</p>
-                                                            {order.teinte && <Badge variant="secondary" className="bg-primary/5 text-primary text-[9px] font-black h-4 border-none mx-auto">{order.teinte}</Badge>}
+                                                        <TableCell>
+                                                            <p className="text-xs font-bold text-slate-600">{order.type_travail}</p>
+                                                            {order.teinte && <span className="text-[9px] bg-primary/5 text-primary px-1.5 py-0.5 rounded font-black">{order.teinte}</span>}
                                                         </TableCell>
-                                                        <TableCell className="text-center">
-                                                            <p className="text-sm font-bold text-slate-800">{order.laboratoire}</p>
-                                                            {order.n_fiche && <p className="text-[10px] text-slate-400"># {order.n_fiche}</p>}
+                                                        <TableCell>
+                                                            <Select value={order.status} onValueChange={(val) => handleLaboStatusChange(order.id, val)}>
+                                                                <SelectTrigger className="h-7 w-24 text-[9px] font-black uppercase border-none bg-transparent shadow-none p-0 focus:ring-0">
+                                                                    {getLaboStatutBadge(order.status)}
+                                                                </SelectTrigger>
+                                                                <SelectContent className="rounded-xl border-none shadow-xl">
+                                                                    {STATUS_OPTIONS.map(opt => <SelectItem key={opt} value={opt} className="text-[10px] font-bold">{opt}</SelectItem>)}
+                                                                </SelectContent>
+                                                            </Select>
                                                         </TableCell>
-                                                        <TableCell className="text-center">
-                                                            <div className="flex justify-center">
-                                                                <Select value={order.statut} onValueChange={(val) => handleLaboStatusChange(order.id, val)}>
-                                                                    <SelectTrigger className="h-8 w-[110px] text-[10px] border-none shadow-none bg-transparent p-0 justify-center">
-                                                                        {getLaboStatutBadge(order.statut)}
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        {STATUS_OPTIONS.map(opt => <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>)}
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
+                                                        <TableCell className="text-right text-xs font-bold text-slate-600">{order.devis.toLocaleString()}</TableCell>
+                                                        <TableCell className={cn("text-right text-xs font-black", order.reste > 0 ? 'text-rose-500' : 'text-emerald-600')}>
+                                                            {order.reste.toLocaleString()}
                                                         </TableCell>
-                                                        <TableCell className="text-center font-bold text-sm text-slate-600">
-                                                            {order.devis?.toLocaleString()}
-                                                        </TableCell>
-                                                        <TableCell className="text-center font-bold text-sm text-emerald-600/80">
-                                                            {order.versement?.toLocaleString()}
-                                                        </TableCell>
-                                                        <TableCell className={cn("text-center font-black text-sm", order.reste > 0 ? "text-rose-500" : "text-emerald-600")}>
-                                                            {order.reste?.toLocaleString()}
-                                                        </TableCell>
-                                                        <TableCell className="text-center">
-                                                            <div className="flex items-center justify-center gap-1">
-                                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600 hover:bg-indigo-50" onClick={() => { setLaboPaymentOrder(order); setShowLaboPaymentModal(true); }}>
-                                                                    <CreditCard className="h-4 w-4" />
-                                                                </Button>
-                                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:bg-slate-50" onClick={() => openLaboEdit(order)}>
-                                                                    <Pencil className="h-4 w-4" />
-                                                                </Button>
+                                                        <TableCell className="text-right">
+                                                            <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Button variant="ghost" size="icon" onClick={() => { setLaboPaymentOrder(order); setLaboPaymentAmount(''); setShowLaboPaymentModal(true); }} className="h-7 w-7 text-primary hover:bg-primary/5"><CreditCard className="h-3.5 w-3.5" /></Button>
+                                                                <Button variant="ghost" size="icon" onClick={() => openLaboEdit(order)} className="h-7 w-7 text-slate-400 hover:bg-slate-50"><Pencil className="h-3.5 w-3.5" /></Button>
                                                                 <AlertDialog>
                                                                     <AlertDialogTrigger asChild>
                                                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500 hover:bg-rose-50">
@@ -1218,7 +1581,7 @@ const MedecinDashboard = () => {
                         </div>
                     )}
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             <Dialog open={!!viewingNote} onOpenChange={(open) => !open && setViewingNote(null)}>
                 <DialogContent className="max-w-sm w-[90vw] rounded-2xl p-6 shadow-2xl border-none">
@@ -1274,19 +1637,135 @@ const MedecinDashboard = () => {
 
                             <div className="space-y-3">
                                 {ordonnanceFormData.medications.map((med, idx) => (
-                                    <div key={idx} className="p-4 bg-slate-50 rounded-2xl space-y-3 border border-slate-100 relative group">
+                                    <div key={idx} className="p-5 bg-white rounded-3xl space-y-4 border border-slate-100 shadow-sm relative group">
                                         {ordonnanceFormData.medications.length > 1 && (
-                                            <Button variant="ghost" size="icon" onClick={() => removeMedication(idx)} className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-white shadow-sm text-rose-500 hover:text-rose-600 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all">
-                                                <X className="h-3 w-3" />
+                                            <Button variant="ghost" size="icon" onClick={() => removeMedication(idx)} className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-white shadow-md text-rose-500 hover:text-rose-600 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all z-10 border">
+                                                <X className="h-4 w-4" />
                                             </Button>
                                         )}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                            <Input placeholder="Nom du médicament..." value={med.name} onChange={e => updateMedication(idx, 'name', e.target.value)} className="rounded-xl border-slate-200 text-sm font-bold h-9" />
-                                            <Input placeholder="Posologie (Ex: 1 comp x 3 / j)" value={med.dosage} onChange={e => updateMedication(idx, 'dosage', e.target.value)} className="rounded-xl border-slate-200 text-sm h-9" />
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2 relative">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Médicament</label>
+                                                <Select
+                                                    value={med.name}
+                                                    onValueChange={(val) => {
+                                                        const selectedMed = dbMedications.find(m => m.name === val);
+                                                        if (selectedMed) {
+                                                            const newMeds = [...ordonnanceFormData.medications];
+                                                            newMeds[idx] = {
+                                                                ...newMeds[idx],
+                                                                name: selectedMed.name,
+                                                                dosage: selectedMed.dosage || '',
+                                                                duree: selectedMed.duree || '',
+                                                                frequency_count: selectedMed.frequency_count || 1,
+                                                                frequency_unit: selectedMed.frequency_unit || 'comprimé(s)',
+                                                                timing: selectedMed.timing || 'apres'
+                                                            };
+                                                            setOrdonnanceFormData({ ...ordonnanceFormData, medications: newMeds });
+                                                        }
+                                                    }}
+                                                >
+                                                    <SelectTrigger className="flex h-11 w-full rounded-xl border border-slate-200 bg-background px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/30">
+                                                        <SelectValue placeholder="Choisir un médicament" />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="max-h-80 rounded-2xl border-slate-200 shadow-xl overflow-hidden p-0">
+                                                        <div className="p-2 border-b bg-slate-50/50">
+                                                            <Button
+                                                                variant="outline"
+                                                                className="w-full rounded-xl h-9 text-[10px] font-black uppercase tracking-widest border-dashed border-primary/30 text-primary hover:bg-primary/5 hover:text-primary"
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    setShowAddMedModal(true);
+                                                                }}
+                                                            >
+                                                                <Plus className="h-3 w-3 mr-1" /> Nouveau Médicament
+                                                            </Button>
+                                                        </div>
+                                                        <ScrollArea className="h-full max-h-60">
+                                                            {dbMedications.map(m => (
+                                                                <SelectItem
+                                                                    key={m.id}
+                                                                    value={m.name}
+                                                                    className="cursor-pointer hover:bg-primary/5 text-sm font-medium text-slate-700 py-2.5"
+                                                                >
+                                                                    <div className="flex flex-col">
+                                                                        <span className="font-bold">{m.name}</span>
+                                                                        {m.dosage && <span className="text-[10px] text-slate-400 font-normal">{m.dosage}</span>}
+                                                                    </div>
+                                                                </SelectItem>
+                                                            ))}
+                                                        </ScrollArea>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Dosage</label>
+                                                <Input
+                                                    placeholder="Ex: 500mg, 1g..."
+                                                    value={med.dosage}
+                                                    onChange={e => updateMedication(idx, 'dosage', e.target.value)}
+                                                    className="rounded-xl h-11 border-slate-200"
+                                                />
+                                                <div className="flex flex-wrap gap-1">
+                                                    {dbMedications.find(m => m.name === med.name)?.variants?.map((v: any, vIdx: number) => (
+                                                        <Badge
+                                                            key={vIdx}
+                                                            variant="outline"
+                                                            className={cn(
+                                                                "cursor-pointer text-[9px] px-2 py-0 h-5 border-slate-200 hover:bg-primary/5",
+                                                                med.dosage === v.dosage ? "bg-primary/10 border-primary text-primary" : ""
+                                                            )}
+                                                            onClick={() => hydrateMedicationFromVariant(dbMedications.find(m => m.name === med.name), vIdx, idx)}
+                                                        >
+                                                            {v.dosage}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                            <Input placeholder="Durée (Ex: 5 jours)" value={med.duration} onChange={e => updateMedication(idx, 'duration', e.target.value)} className="rounded-xl border-slate-200 text-sm h-9" />
-                                            <Input placeholder="Instructions..." value={med.instructions} onChange={e => updateMedication(idx, 'instructions', e.target.value)} className="rounded-xl border-slate-200 text-sm h-9" />
+
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-slate-400">Durée</label>
+                                                <Input placeholder="7 jours" value={med.duree} onChange={e => updateMedication(idx, 'duree', e.target.value)} className="rounded-xl h-9 border-slate-100" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-slate-400">Fréquence (/j)</label>
+                                                <Input type="number" value={med.frequency_count} onChange={e => updateMedication(idx, 'frequency_count', e.target.value)} className="rounded-xl h-9 border-slate-100" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-slate-400">Unité</label>
+                                                <Select value={med.frequency_unit} onValueChange={(val) => updateMedication(idx, 'frequency_unit', val)}>
+                                                    <SelectTrigger className="rounded-xl h-9 border-slate-100"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="comprimé(s)">Comp.</SelectItem>
+                                                        <SelectItem value="gélule(s)">Gél.</SelectItem>
+                                                        <SelectItem value="sachet(s)">Sach.</SelectItem>
+                                                        <SelectItem value="cuillère(s)">Cuil.</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-slate-400">Moment</label>
+                                                <Select value={med.timing} onValueChange={(val) => updateMedication(idx, 'timing', val)}>
+                                                    <SelectTrigger className="rounded-xl h-9 border-slate-100"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="avant">Avant repas</SelectItem>
+                                                        <SelectItem value="apres">Après repas</SelectItem>
+                                                        <SelectItem value="pendant">Pendant repas</SelectItem>
+                                                        <SelectItem value="soir">Soir</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-2 border-t border-slate-50">
+                                            <p className="text-[10px] font-bold text-indigo-400 italic">
+                                                Prévisualisation : {med.dosage} — {formatFrequencyLine(med.frequency_count, med.timing)}
+                                            </p>
                                         </div>
                                     </div>
                                 ))}
@@ -1310,6 +1789,95 @@ const MedecinDashboard = () => {
                 </DialogContent>
             </Dialog>
 
+            {/* NEW MEDICATION MODAL */}
+            <Dialog open={showAddMedModal} onOpenChange={setShowAddMedModal}>
+                <DialogContent className="max-w-md rounded-[2rem] border-none shadow-2xl p-0 overflow-hidden">
+                    <DialogHeader className="p-6 border-b bg-slate-50/50">
+                        <DialogTitle className="text-xl font-black italic text-primary flex items-center gap-2">
+                            <Plus className="h-6 w-6" /> Nouveau Médicament
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="p-6 space-y-4">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nom du médicament <span className="text-rose-500">*</span></label>
+                            <Input
+                                placeholder="ex: Amoxicilline"
+                                value={newMedFormData.name}
+                                onChange={e => setNewMedFormData({ ...newMedFormData, name: e.target.value })}
+                                className="rounded-xl border-slate-200"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Dosage par défaut</label>
+                            <Input
+                                placeholder="ex: 1g"
+                                value={newMedFormData.dosage}
+                                onChange={e => setNewMedFormData({ ...newMedFormData, dosage: e.target.value })}
+                                className="rounded-xl border-slate-200"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Durée par défaut</label>
+                                <Input
+                                    placeholder="ex: 7 jours"
+                                    value={newMedFormData.duree}
+                                    onChange={e => setNewMedFormData({ ...newMedFormData, duree: e.target.value })}
+                                    className="rounded-xl border-slate-200"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Fréquence par défaut (/j)</label>
+                                <Input
+                                    type="number"
+                                    value={newMedFormData.frequency_count}
+                                    onChange={e => setNewMedFormData({ ...newMedFormData, frequency_count: parseInt(e.target.value) || 1 })}
+                                    className="rounded-xl border-slate-200"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Unité</label>
+                                <Select value={newMedFormData.frequency_unit} onValueChange={(val) => setNewMedFormData({ ...newMedFormData, frequency_unit: val })}>
+                                    <SelectTrigger className="rounded-xl border-slate-200"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="comprimé(s)">Comp.</SelectItem>
+                                        <SelectItem value="gélule(s)">Gél.</SelectItem>
+                                        <SelectItem value="sachet(s)">Sach.</SelectItem>
+                                        <SelectItem value="cuillère(s)">Cuil.</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Moment</label>
+                                <Select value={newMedFormData.timing} onValueChange={(val) => setNewMedFormData({ ...newMedFormData, timing: val })}>
+                                    <SelectTrigger className="rounded-xl border-slate-200"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="avant">Avant repas</SelectItem>
+                                        <SelectItem value="apres">Après repas</SelectItem>
+                                        <SelectItem value="pendant">Pendant repas</SelectItem>
+                                        <SelectItem value="soir">Soir</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter className="p-6 bg-slate-50/50 flex gap-2">
+                        <Button variant="ghost" onClick={() => setShowAddMedModal(false)} className="rounded-xl font-bold">Annuler</Button>
+                        <Button
+                            onClick={handleSaveNewMed}
+                            disabled={savingNewMed}
+                            className="rounded-xl font-black px-8 shadow-lg shadow-primary/20 bg-primary"
+                        >
+                            {savingNewMed ? 'Enregistrement...' : 'Enregistrer'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* LABO ADD/EDIT MODAL */}
             <Dialog open={showLaboAddModal} onOpenChange={setShowLaboAddModal}>
                 <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto rounded-[2rem] border-none shadow-2xl p-0">
@@ -1322,16 +1890,16 @@ const MedecinDashboard = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
                         <div className="space-y-1">
                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date</label>
-                            <Input type="date" value={laboFormData.date} onChange={e => setLaboFormData({ ...laboFormData, date: e.target.value })} className="rounded-xl border-slate-200" />
+                            <Input type="date" value={laboFormData.date_reception} onChange={e => setLaboFormData({ ...laboFormData, date_reception: e.target.value })} className="rounded-xl border-slate-200" />
                         </div>
                         <div className="space-y-1">
                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Patient <span className="text-rose-500">*</span></label>
-                            <Input placeholder="Nom du patient" value={laboFormData.nom_prenom} onChange={e => setLaboFormData({ ...laboFormData, nom_prenom: e.target.value })} className="rounded-xl border-slate-200" />
+                            <Input placeholder="Nom du patient" value={laboFormData.client_name} onChange={e => setLaboFormData({ ...laboFormData, client_name: e.target.value })} className="rounded-xl border-slate-200" />
                         </div>
 
                         <div className="space-y-1">
                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Type de prothèse <span className="text-rose-500">*</span></label>
-                            <Select value={laboFormData.type_prothese} onValueChange={v => setLaboFormData({ ...laboFormData, type_prothese: v })}>
+                            <Select value={laboFormData.type_travail} onValueChange={v => setLaboFormData({ ...laboFormData, type_travail: v })}>
                                 <SelectTrigger className="rounded-xl border-slate-200"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
                                 <SelectContent className="rounded-xl border-none shadow-xl">
                                     {TYPE_SUGGESTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
@@ -1350,48 +1918,8 @@ const MedecinDashboard = () => {
                         </div>
 
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Laboratoire <span className="text-rose-500">*</span></label>
-                            {!customLabo ? (
-                                <Select value={laboFormData.laboratoire} onValueChange={v => {
-                                    if (v === 'autre') {
-                                        setCustomLabo(true);
-                                        setLaboFormData({ ...laboFormData, laboratoire: '' });
-                                    } else {
-                                        setLaboFormData({ ...laboFormData, laboratoire: v });
-                                    }
-                                }}>
-                                    <SelectTrigger className="rounded-xl border-slate-200"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                                    <SelectContent className="rounded-xl border-none shadow-xl">
-                                        {DEFAULT_LABOS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                                        <SelectItem value="autre" className="font-bold text-primary">Autre (Nouveau)</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            ) : (
-                                <div className="flex gap-2">
-                                    <Input
-                                        placeholder="Nom du laboratoire..."
-                                        value={laboFormData.laboratoire || ''}
-                                        onChange={e => setLaboFormData({ ...laboFormData, laboratoire: e.target.value })}
-                                        className="rounded-xl border-slate-200"
-                                        autoFocus
-                                    />
-                                    <Button variant="ghost" size="icon" onClick={() => {
-                                        setCustomLabo(false);
-                                        setLaboFormData({ ...laboFormData, laboratoire: '' });
-                                    }} className="rounded-xl">
-                                        <ChevronLeft className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">N° Fiche (Réf)</label>
-                            <Input placeholder="..." value={laboFormData.n_fiche || ''} onChange={e => setLaboFormData({ ...laboFormData, n_fiche: e.target.value })} className="rounded-xl border-slate-200" />
-                        </div>
-
-                        <div className="space-y-1">
                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Statut</label>
-                            <Select value={laboFormData.statut} onValueChange={v => setLaboFormData({ ...laboFormData, statut: v as any })}>
+                            <Select value={laboFormData.status} onValueChange={v => setLaboFormData({ ...laboFormData, status: v as any })}>
                                 <SelectTrigger className="rounded-xl border-slate-200"><SelectValue /></SelectTrigger>
                                 <SelectContent className="rounded-xl border-none shadow-xl">
                                     {STATUS_OPTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
@@ -1400,7 +1928,7 @@ const MedecinDashboard = () => {
                         </div>
                         <div className="space-y-1">
                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Téléphone</label>
-                            <Input placeholder="05..." value={laboFormData.telephone || ''} onChange={e => setLaboFormData({ ...laboFormData, telephone: e.target.value })} className="rounded-xl border-slate-200" />
+                            <Input placeholder="05..." value={laboFormData.patient_phone || ''} onChange={e => setLaboFormData({ ...laboFormData, patient_phone: e.target.value })} className="rounded-xl border-slate-200" />
                         </div>
 
                         <div className="space-y-1">
@@ -1420,11 +1948,6 @@ const MedecinDashboard = () => {
                                 </span>
                             </div>
                         </div>
-
-                        <div className="space-y-1 md:col-span-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Observations</label>
-                            <Input placeholder="..." value={laboFormData.observation || ''} onChange={e => setLaboFormData({ ...laboFormData, observation: e.target.value })} className="rounded-xl border-slate-200" />
-                        </div>
                     </div>
                     <DialogFooter className="p-6 bg-slate-50/50 flex gap-2">
                         <Button variant="ghost" onClick={() => setShowLaboAddModal(false)} className="rounded-xl font-bold">Annuler</Button>
@@ -1441,7 +1964,7 @@ const MedecinDashboard = () => {
                             <CreditCard className="h-6 w-6" />
                             Verser Labo
                         </DialogTitle>
-                        <DialogDescription className="font-bold text-slate-400 uppercase text-[10px] tracking-widest mt-1">Patient: {laboPaymentOrder?.nom_prenom}</DialogDescription>
+                        <DialogDescription className="font-bold text-slate-400 uppercase text-[10px] tracking-widest mt-1">Patient: {laboPaymentOrder?.client_name}</DialogDescription>
                     </DialogHeader>
                     <div className="p-6 space-y-4">
                         <div className="flex justify-between items-center p-4 bg-rose-50 rounded-2xl">
@@ -1471,7 +1994,7 @@ const MedecinDashboard = () => {
             <footer className="p-4 border-t bg-muted/20 text-center">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">&copy; PasseVite - Gestion Holistique des Soins</p>
             </footer>
-        </div>
+        </div >
     );
 };
 

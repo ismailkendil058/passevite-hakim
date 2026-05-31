@@ -20,18 +20,16 @@ import { Link } from 'react-router-dom';
 
 interface LaboOrder {
     id: string;
-    date: string;
-    nom_prenom: string;
-    type_prothese: string;
+    date_reception: string;
+    client_name: string;
+    type_travail: string;
     teinte: string;
-    laboratoire: string;
-    n_fiche: string;
-    statut: 'En cours' | 'Au labo' | 'Livré' | 'Problème';
+    status: 'En cours' | 'Au labo' | 'Livré' | 'Problème';
     devis: number;
     versement: number;
     reste: number;
-    telephone: string;
-    observation: string;
+    patient_phone: string;
+    doctor_id: string;
     created_at: string;
 }
 
@@ -58,8 +56,8 @@ export default function LaboPage() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [customLabo, setCustomLabo] = useState(false);
     const [formData, setFormData] = useState<Partial<LaboOrder>>({
-        date: format(new Date(), 'yyyy-MM-dd'),
-        statut: 'En cours',
+        date_reception: format(new Date(), 'yyyy-MM-dd'),
+        status: 'En cours',
         devis: 0,
         versement: 0
     });
@@ -89,17 +87,21 @@ export default function LaboPage() {
         let query = supabase
             .from('labo_orders')
             .select('*')
-            .gte('date', dateFrom)
-            .lte('date', dateTo)
-            .order('date', { ascending: false });
+            .gte('date_reception', dateFrom)
+            .lte('date_reception', dateTo)
+            .order('date_reception', { ascending: false });
 
         const { data, error } = await query;
         if (error) {
             toast.error('Erreur lors du chargement des commandes labo');
             console.error(error);
         } else {
-            // @ts-ignore
-            setOrders(data as LaboOrder[]);
+            // Calculate reste on the fly
+            const mapped = (data || []).map((o: any) => ({
+                ...o,
+                reste: (o.devis || 0) - (o.versement || 0)
+            }));
+            setOrders(mapped as LaboOrder[]);
         }
         setLoading(false);
     };
@@ -107,12 +109,12 @@ export default function LaboPage() {
     const filteredOrders = useMemo(() => {
         return orders.filter(o => {
             const matchSearch = !searchQuery ||
-                o.nom_prenom?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                o.type_prothese?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                o.laboratoire?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                o.n_fiche?.toLowerCase().includes(searchQuery.toLowerCase());
+                o.client_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                o.type_travail?.toLowerCase().includes(searchQuery.toLowerCase());
+            // o.laboratoire?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            // o.n_fiche?.toLowerCase().includes(searchQuery.toLowerCase());
 
-            const matchStatus = statusFilter === 'Tous' || o.statut === statusFilter;
+            const matchStatus = statusFilter === 'Tous' || o.status === statusFilter;
 
             return matchSearch && matchStatus;
         });
@@ -128,7 +130,7 @@ export default function LaboPage() {
             totalDevis += (o.devis || 0);
             totalCashed += (o.versement || 0);
             totalReste += (o.reste || 0);
-            if (o.statut === 'Au labo') waitingLabCount++;
+            if (o.status === 'Au labo') waitingLabCount++;
         });
 
         return { totalDevis, totalCashed, totalReste, waitingLabCount };
@@ -138,21 +140,18 @@ export default function LaboPage() {
         try {
             const finalLaboratoire = customLabo ? formData.laboratoire : formData.laboratoire;
             const payload = {
-                date: formData.date || format(new Date(), 'yyyy-MM-dd'),
-                nom_prenom: formData.nom_prenom || '',
-                type_prothese: formData.type_prothese || '',
+                date_reception: formData.date_reception || format(new Date(), 'yyyy-MM-dd'),
+                client_name: formData.client_name || '',
+                type_travail: formData.type_travail || '',
                 teinte: formData.teinte || null,
-                laboratoire: finalLaboratoire || '',
-                n_fiche: formData.n_fiche || null,
-                statut: formData.statut || 'En cours',
+                status: formData.status || 'En cours',
                 devis: formData.devis || 0,
                 versement: formData.versement || 0,
-                telephone: formData.telephone || null,
-                observation: formData.observation || null,
+                patient_phone: formData.patient_phone || null,
             };
 
-            if (!payload.nom_prenom || !payload.type_prothese || !payload.laboratoire) {
-                toast.error('Veuillez remplir les champs obligatoires (Nom, Type, Laboratoire)');
+            if (!payload.client_name || !payload.type_travail) {
+                toast.error('Veuillez remplir les champs obligatoires (Nom, Type)');
                 return;
             }
 
@@ -189,9 +188,9 @@ export default function LaboPage() {
     const handleStatusChange = async (id: string, newStatus: string) => {
         try {
             // Optimistic update
-            setOrders(orders.map(o => o.id === id ? { ...o, statut: newStatus as any } : o));
+            setOrders(orders.map(o => o.id === id ? { ...o, status: newStatus as any } : o));
             // @ts-ignore
-            const { error } = await supabase.from('labo_orders').update({ statut: newStatus }).eq('id', id);
+            const { error } = await supabase.from('labo_orders').update({ status: newStatus }).eq('id', id);
             if (error) throw error;
             toast.success('Statut mis à jour');
         } catch (error: any) {
@@ -236,48 +235,50 @@ export default function LaboPage() {
         setEditingId(null);
         setCustomLabo(false);
         setFormData({
-            date: format(new Date(), 'yyyy-MM-dd'),
-            statut: 'En cours',
+            date_reception: format(new Date(), 'yyyy-MM-dd'),
+            status: 'En cours',
             devis: 0,
             versement: 0,
-            nom_prenom: '',
-            type_prothese: '',
+            client_name: '',
+            type_travail: '',
             teinte: '',
-            laboratoire: '',
-            n_fiche: '',
-            telephone: '',
-            observation: ''
+            // laboratoire: '',
+            // n_fiche: '',
+            patient_phone: '',
+            // observation: ''
         });
     };
 
     const openEdit = (order: LaboOrder) => {
         setEditingId(order.id);
-        if (!DEFAULT_LABOS.includes(order.laboratoire)) {
-            setCustomLabo(true);
-        } else {
-            setCustomLabo(false);
-        }
         setFormData({
-            ...order
+            date_reception: order.date_reception,
+            client_name: order.client_name,
+            type_travail: order.type_travail,
+            teinte: order.teinte,
+            status: order.status,
+            devis: order.devis,
+            versement: order.versement,
+            patient_phone: order.patient_phone,
         });
         setShowAddModal(true);
     };
 
     const getRowClass = (order: LaboOrder) => {
-        if (order.statut === 'Livré' && order.reste === 0) {
+        if (order.status === 'Livré' && order.reste === 0) {
             return 'bg-green-50/50 border-l-4 border-green-500';
         }
-        if (order.statut === 'Au labo') {
+        if (order.status === 'Au labo') {
             return 'bg-yellow-50/50 border-l-4 border-yellow-400';
         }
-        if (order.statut === 'Problème' || (order.statut === 'Livré' && order.reste > 0)) {
+        if (order.status === 'Problème' || (order.status === 'Livré' && order.reste > 0)) {
             return 'bg-red-50/50 border-l-4 border-red-500';
         }
         return '';
     };
 
-    const getStatutBadge = (statut: string) => {
-        switch (statut) {
+    const getStatutBadge = (status: string) => {
+        switch (status) {
             case 'Livré':
                 return <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">Livré</Badge>;
             case 'Au labo':
@@ -411,26 +412,26 @@ export default function LaboPage() {
                                 ) : (
                                     filteredOrders.map(order => (
                                         <TableRow key={order.id} className={`${getRowClass(order)}`}>
-                                            <TableCell className="text-xs whitespace-nowrap">{format(new Date(order.date), 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell className="text-xs whitespace-nowrap">{format(new Date(order.date_reception), 'dd/MM/yyyy')}</TableCell>
                                             <TableCell>
-                                                <p className="font-semibold text-sm">{order.nom_prenom}</p>
-                                                {order.telephone && <p className="text-xs text-muted-foreground">{order.telephone}</p>}
+                                                <p className="font-semibold text-sm">{order.client_name}</p>
+                                                {order.patient_phone && <p className="text-xs text-muted-foreground">{order.patient_phone}</p>}
                                             </TableCell>
                                             <TableCell>
-                                                <p className="text-sm">{order.type_prothese}</p>
+                                                <p className="text-sm">{order.type_travail}</p>
                                                 {order.teinte && <span className="text-xs text-muted-foreground bg-primary/10 px-1 rounded">{order.teinte}</span>}
                                             </TableCell>
                                             <TableCell>
-                                                <p className="text-sm font-medium">{order.laboratoire}</p>
-                                                {order.n_fiche && <p className="text-xs text-muted-foreground">Réf: {order.n_fiche}</p>}
+                                                {/* <p className="text-sm font-medium">{order.laboratoire}</p> */}
+                                                {/* {order.n_fiche && <p className="text-xs text-muted-foreground">Réf: {order.n_fiche}</p>} */}
                                             </TableCell>
                                             <TableCell>
                                                 <Select
-                                                    value={order.statut}
+                                                    value={order.status}
                                                     onValueChange={(val) => handleStatusChange(order.id, val)}
                                                 >
                                                     <SelectTrigger className="h-8 w-[120px] text-xs border-0 shadow-none bg-transparent hover:bg-muted/50 p-0 text-left justify-start gap-2">
-                                                        {getStatutBadge(order.statut)}
+                                                        {getStatutBadge(order.status)}
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         {STATUS_OPTIONS.map(opt => (
@@ -491,12 +492,12 @@ export default function LaboPage() {
                                 <CardContent className="p-3">
                                     <div className="flex justify-between items-start mb-2 border-b pb-2">
                                         <div>
-                                            <p className="font-bold text-sm">{order.nom_prenom}</p>
-                                            <p className="text-xs text-muted-foreground">{order.type_prothese} - {order.laboratoire}</p>
+                                            <p className="font-bold text-sm">{order.client_name}</p>
+                                            <p className="text-xs text-muted-foreground">{order.type_travail}</p>
                                         </div>
                                         <div className="text-right">
-                                            {getStatutBadge(order.statut)}
-                                            <p className="text-[10px] text-muted-foreground mt-1">{format(new Date(order.date), 'dd/MM/yyyy')}</p>
+                                            {getStatutBadge(order.status)}
+                                            <p className="text-[10px] text-muted-foreground mt-1">{format(new Date(order.date_reception), 'dd/MM/yyyy')}</p>
                                         </div>
                                     </div>
 
@@ -541,16 +542,16 @@ export default function LaboPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-3">
                         <div className="space-y-1">
                             <label className="text-xs font-medium">Date</label>
-                            <Input type="date" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
+                            <Input type="date" value={formData.date_reception} onChange={e => setFormData({ ...formData, date_reception: e.target.value })} />
                         </div>
                         <div className="space-y-1">
                             <label className="text-xs font-medium">Patient <span className="text-red-500">*</span></label>
-                            <Input placeholder="Nom du patient" value={formData.nom_prenom} onChange={e => setFormData({ ...formData, nom_prenom: e.target.value })} />
+                            <Input placeholder="Nom du patient" value={formData.client_name} onChange={e => setFormData({ ...formData, client_name: e.target.value })} />
                         </div>
 
                         <div className="space-y-1">
                             <label className="text-xs font-medium">Type de prothèse <span className="text-red-500">*</span></label>
-                            <Select value={formData.type_prothese} onValueChange={v => setFormData({ ...formData, type_prothese: v })}>
+                            <Select value={formData.type_travail} onValueChange={v => setFormData({ ...formData, type_travail: v })}>
                                 <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
                                 <SelectContent>
                                     {TYPE_SUGGESTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
@@ -567,49 +568,9 @@ export default function LaboPage() {
                                 </SelectContent>
                             </Select>
                         </div>
-
-                        <div className="space-y-1">
-                            <label className="text-xs font-medium">Laboratoire <span className="text-red-500">*</span></label>
-                            {!customLabo ? (
-                                <Select value={formData.laboratoire} onValueChange={v => {
-                                    if (v === 'autre') {
-                                        setCustomLabo(true);
-                                        setFormData({ ...formData, laboratoire: '' });
-                                    } else {
-                                        setFormData({ ...formData, laboratoire: v });
-                                    }
-                                }}>
-                                    <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                                    <SelectContent>
-                                        {DEFAULT_LABOS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                                        <SelectItem value="autre">Autre (Nouveau)</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            ) : (
-                                <div className="flex gap-2">
-                                    <Input
-                                        placeholder="Nom du laboratoire..."
-                                        value={formData.laboratoire || ''}
-                                        onChange={e => setFormData({ ...formData, laboratoire: e.target.value })}
-                                        autoFocus
-                                    />
-                                    <Button variant="outline" size="icon" onClick={() => {
-                                        setCustomLabo(false);
-                                        setFormData({ ...formData, laboratoire: '' });
-                                    }}>
-                                        <ChevronLeft className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-medium">N° Fiche (Réf)</label>
-                            <Input placeholder="..." value={formData.n_fiche || ''} onChange={e => setFormData({ ...formData, n_fiche: e.target.value })} />
-                        </div>
-
                         <div className="space-y-1">
                             <label className="text-xs font-medium">Statut</label>
-                            <Select value={formData.statut} onValueChange={v => setFormData({ ...formData, statut: v as any })}>
+                            <Select value={formData.status} onValueChange={v => setFormData({ ...formData, status: v as any })}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     {STATUS_OPTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
@@ -618,7 +579,7 @@ export default function LaboPage() {
                         </div>
                         <div className="space-y-1">
                             <label className="text-xs font-medium">Téléphone</label>
-                            <Input placeholder="05..." value={formData.telephone || ''} onChange={e => setFormData({ ...formData, telephone: e.target.value })} />
+                            <Input placeholder="05..." value={formData.patient_phone || ''} onChange={e => setFormData({ ...formData, patient_phone: e.target.value })} />
                         </div>
 
                         <div className="space-y-1">
@@ -638,11 +599,6 @@ export default function LaboPage() {
                                 </span>
                             </div>
                         </div>
-
-                        <div className="space-y-1 md:col-span-2">
-                            <label className="text-xs font-medium">Observations</label>
-                            <Input placeholder="..." value={formData.observation || ''} onChange={e => setFormData({ ...formData, observation: e.target.value })} />
-                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowAddModal(false)}>Annuler</Button>
@@ -656,7 +612,7 @@ export default function LaboPage() {
                 <DialogContent className="max-w-sm">
                     <DialogHeader>
                         <DialogTitle>Ajouter un versement</DialogTitle>
-                        <DialogDescription>Patient: <span className="font-bold text-foreground">{paymentOrder?.nom_prenom}</span></DialogDescription>
+                        <DialogDescription>Patient: <span className="font-bold text-foreground">{paymentOrder?.client_name}</span></DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
                         <div className="flex justify-between items-center text-sm bg-muted/50 p-2 rounded">
