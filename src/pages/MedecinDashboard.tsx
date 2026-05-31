@@ -146,12 +146,25 @@ const MedecinDashboard = () => {
     });
     const [savingNewMed, setSavingNewMed] = useState(false);
 
+    const normalizeMedication = (med: any) => ({
+        ...med,
+        dosage: med.dosage || med.default_dosage || '',
+        duree: med.duree || med.default_duration || '',
+        frequency_count: med.frequency_count ?? med.default_frequency_count ?? 1,
+        frequency_unit: med.frequency_unit || med.default_frequency_unit || 'comprimé(s)',
+        timing: med.timing || med.default_timing || 'apres',
+        variants: med.variants || []
+    });
+
     const fetchMeds = async () => {
         try {
-            const { data, error } = await supabase.from('medications').select('*').order('name');
+            const { data, error } = await supabase
+                .from('medications')
+                .select('*')
+                .order('name');
             if (error) throw error;
             if (data) {
-                setDbMedications(data);
+                setDbMedications(data.map(normalizeMedication));
             }
         } catch (err) {
             console.error('Error fetching medications:', err);
@@ -173,6 +186,11 @@ const MedecinDashboard = () => {
             const { error } = await supabase.from('medications').insert([
                 {
                     name: newMedFormData.name,
+                    default_dosage: newMedFormData.dosage,
+                    default_duration: newMedFormData.duree,
+                    default_frequency_count: newMedFormData.frequency_count,
+                    default_frequency_unit: newMedFormData.frequency_unit,
+                    default_timing: newMedFormData.timing
                 }
             ]);
 
@@ -202,12 +220,12 @@ const MedecinDashboard = () => {
         const variants = med.variants || [];
         const variant = variants[variantIdx] || null;
 
-        // Use variant data if available, otherwise fall back to direct default columns
-        const dosage = variant?.dosage || med.dosage || '';
-        const duree = variant?.duration || med.duree || '';
-        const frequency_count = variant?.frequency_count ?? med.frequency_count ?? 1;
-        const frequency_unit = variant?.frequency_unit || med.frequency_unit || 'comprimé(s)';
-        const timing = variant?.timing || med.timing || 'apres';
+        // Use variant data if available, otherwise fall back to direct values and default columns
+        const dosage = variant?.dosage || med.dosage || med.default_dosage || '';
+        const duree = variant?.duration || med.duree || med.default_duration || '';
+        const frequency_count = variant?.frequency_count ?? med.frequency_count ?? med.default_frequency_count ?? 1;
+        const frequency_unit = variant?.frequency_unit || med.frequency_unit || med.default_frequency_unit || 'comprimé(s)';
+        const timing = variant?.timing || med.timing || med.default_timing || 'apres';
 
         console.log('[Hydrate]', med.name, { dosage, duree, frequency_count, frequency_unit, timing });
 
@@ -1692,7 +1710,7 @@ const MedecinDashboard = () => {
                                                                 >
                                                                     <div className="flex flex-col">
                                                                         <span className="font-bold">{m.name}</span>
-                                                                        {m.dosage && <span className="text-[10px] text-slate-400 font-normal">{m.dosage}</span>}
+                                                                        {(m.dosage || m.default_dosage) && <span className="text-[10px] text-slate-400 font-normal">{m.dosage || m.default_dosage}</span>}
                                                                     </div>
                                                                 </SelectItem>
                                                             ))}

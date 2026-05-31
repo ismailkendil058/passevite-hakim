@@ -17,7 +17,7 @@ const QrStickerModal: React.FC<QrStickerModalProps> = ({
     onOpenChange,
     patientName,
     patientPhone,
-    clinicName = 'PasseVite',
+    clinicName = 'CD Dental Clinic',
 }) => {
     const printRef = useRef<HTMLDivElement>(null);
 
