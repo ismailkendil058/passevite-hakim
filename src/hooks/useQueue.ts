@@ -185,6 +185,19 @@ export function useQueue() {
     const doctor = doctors.find(d => d.id === doctorId);
     if (!doctor) return { error: new Error('Equipe introuvable') };
 
+    // Fetch active session (required NOT NULL FK in queue_entries)
+    const { data: sessionData } = await supabase
+      .from('sessions')
+      .select('id')
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+
+    if (!sessionData?.id) {
+      return { error: new Error('Aucune session active. Veuillez ouvrir une session avant d\'ajouter un patient.') };
+    }
+
+    const activeSessionId = sessionData.id;
     const todayStart = startOfDay(new Date()).toISOString();
 
     // Get next number for today
@@ -205,14 +218,17 @@ export function useQueue() {
 
     let maxNumber = 0;
     if (qRes.data && qRes.data.length > 0) {
-      maxNumber = qRes.data[0].state_number;
+      const n = qRes.data[0].state_number;
+      // Ignore corrupt state_number (e.g. timestamp-sized values)
+      if (n <= 9999) maxNumber = n;
     }
     if (cRes.data && cRes.data.length > 0) {
       cRes.data.forEach(item => {
         const matches = item.client_id.match(/\d+/);
         if (matches) {
           const num = parseInt(matches[0]);
-          if (num > maxNumber) maxNumber = num;
+          // Ignore corrupt values (e.g. timestamps accidentally stored as client_id)
+          if (num > maxNumber && num <= 9999) maxNumber = num;
         }
       });
     }
@@ -221,19 +237,23 @@ export function useQueue() {
     const clientId = `${state}${nextNumber}${doctor.initial}`;
     const position = entries.length + 1;
 
+    const nameValue = patientName?.trim() || phone.trim();
+
+    const insertPayload: Record<string, unknown> = {
+      phone: phone.trim(),
+      state,
+      doctor_id: doctorId,
+      state_number: nextNumber,
+      client_id: clientId,
+      client_name: nameValue,   // NOT NULL in actual DB
+      position,
+      session_id: activeSessionId,
+    };
+    if (patientName?.trim()) insertPayload.patient_name = patientName.trim();
+
     const { data, error } = await supabase
       .from('queue_entries')
-      .insert({
-        phone: phone.trim(),
-        patient_name: patientName?.trim(),
-        client_name: patientName?.trim(), // Added to match potential DB requirement
-        state,
-        doctor_id: doctorId,
-        state_number: nextNumber,
-        client_id: clientId,
-        position,
-        appointment_id: appointmentId,
-      } as any)
+      .insert(insertPayload as any)
       .select('*, doctor:doctors(*)')
       .single();
 

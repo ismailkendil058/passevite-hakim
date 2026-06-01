@@ -334,6 +334,7 @@ export type Database = {
       queue_entries: {
         Row: {
           client_id: string
+          client_name: string
           created_at: string | null
           doctor_id: string
           id: string
@@ -347,6 +348,7 @@ export type Database = {
         }
         Insert: {
           client_id: string
+          client_name: string
           created_at?: string | null
           doctor_id: string
           id?: string
@@ -360,6 +362,7 @@ export type Database = {
         }
         Update: {
           client_id?: string
+          client_name?: string
           created_at?: string | null
           doctor_id?: string
           id?: string
