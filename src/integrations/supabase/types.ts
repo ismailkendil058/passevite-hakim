@@ -410,6 +410,59 @@ export type Database = {
         }
         Relationships: []
       }
+      labo_orders: {
+        Row: {
+          id: string
+          date_reception: string
+          client_name: string
+          type_travail: string
+          teinte: string | null
+          status: string
+          devis: number
+          versement: number
+          reste: number
+          patient_phone: string | null
+          doctor_id: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          date_reception: string
+          client_name: string
+          type_travail: string
+          teinte?: string | null
+          status?: string
+          devis?: number
+          versement?: number
+          reste?: number
+          patient_phone?: string | null
+          doctor_id?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          date_reception?: string
+          client_name?: string
+          type_travail?: string
+          teinte?: string | null
+          status?: string
+          devis?: number
+          versement?: number
+          reste?: number
+          patient_phone?: string | null
+          doctor_id?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "labo_orders_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       prescriptions: {
         Row: {
           id: string

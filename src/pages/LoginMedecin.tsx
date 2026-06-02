@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Users, ArrowLeft } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { setPersistentAuth } from '@/lib/utils';
 
@@ -61,17 +61,9 @@ const LoginMedecin = () => {
         <div className="flex min-h-screen items-center justify-center bg-[#FBF9FF] p-4 font-sans selection:bg-[#64409a]/30">
             <Card className="w-full max-w-md lg:max-w-lg shadow-2xl border-none rounded-[2.5rem] bg-white overflow-hidden">
                 <CardHeader className="text-center space-y-6 lg:space-y-8 pt-10 lg:pt-14 pb-2 relative">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => navigate('/')}
-                        className="absolute left-6 top-6 rounded-full hover:bg-muted"
-                    >
-                        <ArrowLeft className="h-5 w-5" />
-                    </Button>
                     <div className="mx-auto block">
                         <img src="/Dr hakim.png" alt="Logo" className="h-10 lg:h-14 w-auto brightness-0 opacity-80 mx-auto" />
-                        <h1 className="text-3xl lg:text-4xl font-serif font-bold tracking-tight text-[#2a1f3d] mt-4 uppercase">PasseVite</h1>
+                        <h1 className="text-3xl lg:text-4xl font-serif font-bold tracking-tight text-[#2a1f3d] mt-4 uppercase">CD dental clinic</h1>
                         <p className="text-[10px] lg:text-xs tracking-[0.4em] text-[#64409a] mt-1 font-bold">PORTAIL EQUIPE</p>
                     </div>
                     <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-3xl bg-[#64409a]/10 flex items-center justify-center mx-auto shadow-sm">

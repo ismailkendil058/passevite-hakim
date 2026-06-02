@@ -311,7 +311,6 @@ const MedecinDashboard = () => {
             const { error } = await supabase.from('prescriptions').insert({
                 doctor_id: doctorInfo.id,
                 patient_name: ordonnanceFormData.patient_name,
-                age: ordonnanceFormData.age ? parseInt(ordonnanceFormData.age) : null,
                 prescription_date: ordonnanceFormData.date || format(new Date(), 'yyyy-MM-dd'),
                 medications: ordonnanceFormData.medications,
                 notes: ordonnanceFormData.notes
@@ -362,306 +361,269 @@ const MedecinDashboard = () => {
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
-        const medsHtml = rx.medications.map((m: any) => `
-            <div style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 0.5px solid #f0f0f0;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                    <span style="font-size: 20px; font-weight: 900; color: #000; text-transform: uppercase; font-family: 'DM Sans', sans-serif;">${m.name}</span>
-                    <span style="font-size: 14px; font-weight: 700; color: #000; background: #f4f1f9; padding: 4px 10px; border-radius: 6px; font-family: 'DM Sans', sans-serif;">Qsp: ${m.duree || m.duration || '--'}</span>
+        const medsHtml = rx.medications.map((m: any) => {
+            const timingMap: Record<string, string> = {
+                'avant': 'avant le repas',
+                'apres': 'après le repas',
+                'pendant': 'pendant le repas',
+                'soir': 'le soir'
+            };
+            const hTiming = timingMap[m.timing] || m.timing || '';
+
+            return `
+            <div style="margin-bottom: 5mm; font-family: 'Lato', sans-serif; break-inside: avoid;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1mm;">
+                    <span style="font-size: 13pt; font-weight: 700; color: #000; text-transform: uppercase;">
+                        ${m.name}${m.frequency_unit ? ` (${m.frequency_unit.replace('(s)', '')})` : ''}
+                    </span>
+                    <span style="font-size: 10pt; font-weight: 400; color: #2a8bbf;">Qsp: ${m.duree || m.duration || '--'}</span>
                 </div>
-                <div style="font-size: 16px; color: #000; font-weight: 500; display: flex; gap: 10px; align-items: center; font-family: 'DM Sans', sans-serif;">
-                    <span style="color: #000;">${m.dosage}</span>
-                    <span style="color: #ccc;">•</span>
-                    <span style="color: #000;">${m.frequency_count ? formatFrequencyLine(m.frequency_count, m.timing, m.frequency_unit) : (m.instructions || '')}</span>
+                <div style="font-size: 12pt; color: #333; font-weight: 400; padding-left: 4mm; line-height: 1.4; font-style: italic;">
+                    ${m.dosage ? `${m.dosage} ` : ''}${m.frequency_count ? `${m.frequency_count} fois par jour ${hTiming}` : (m.instructions || '')}
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
+
+        const patientName = rx.patient_name || '';
+        const nameParts = patientName.split(' ');
+        const nom = nameParts[0] || '';
+        const prenom = nameParts.slice(1).join(' ') || '';
 
         printWindow.document.write(`
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ordonnance — ${rx.patient_name}</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8">
+<title>Ordonnance — ${rx.patient_name}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400&family=Lato:wght@300;400;700&display=swap');
 
-    body {
-      font-family: 'DM Sans', sans-serif;
-      background: #ede8e0;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      min-height: 100vh;
-      padding: 0;
-    }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    .page {
-      width: 210mm;
-      min-height: 297mm;
-      background: #ffffff;
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      overflow: hidden;
-    }
+  body {
+    background: transparent;
+    font-family: 'Lato', sans-serif;
+  }
 
-    /* ── DECORATIVE BOTTOM WAVE (SVG) ── */
-    .bottom-deco {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      pointer-events: none;
-    }
+  .page {
+    width: 210mm;
+    height: 297mm;
+    background: #fff;
+    padding: 10mm 15mm;
+    display: flex;
+    flex-direction: column;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+  }
 
-    /* ── INNER CONTENT ── */
-    .content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      padding: 14mm 18mm 52mm 18mm;
-      position: relative;
-      z-index: 1;
-    }
+  .clinic-brand {
+    text-align: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 32pt;
+    font-weight: 700;
+    color: #3a9fd1;
+    margin-bottom: 8mm;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
 
-    /* ── HEADER: centered ── */
-    header {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      padding-bottom: 10mm;
-    }
+  .top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 5mm;
+    border-bottom: 1px solid #f0f7fb;
+    padding-bottom: 3mm;
+  }
 
-    .logo-container {
-      margin-bottom: 15px;
-      display: flex;
-      justify-content: center;
-    }
+  .header {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+  }
 
-    .logo-container img {
-      height: 65px;
-      max-width: 140px;
-      object-fit: contain;
-    }
+  .logo-wrap {
+    flex-shrink: 0;
+    width: 50px;
+    height: 55px;
+  }
 
-    .doctor-name {
-      font-family: 'DM Serif Display', serif;
-      font-style: italic;
-      font-size: 28px;
-      color: #5b2d8e;
-      letter-spacing: 0.01em;
-      line-height: 1.2;
-      margin-bottom: 5px;
-    }
+  .logo-wrap svg { width: 100%; height: 100%; }
 
-    .doctor-title {
-      font-size: 11px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: #a89abf;
-      font-weight: 400;
-    }
+  .clinic-name {
+    font-size: 14pt;
+    font-weight: 700;
+    color: #2a8bbf;
+    margin-bottom: 1mm;
+  }
 
-    .header-divider {
-      width: 40mm;
-      height: 0.5px;
-      background: linear-gradient(to right, transparent, #c8b8e8, transparent);
-      margin: 8px auto 0;
-    }
+  .doctor-title {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #2a8bbf;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 2mm;
+  }
 
-    /* ── META ROW ── */
-    .meta-row {
-      display: flex;
-      gap: 16px;
-      margin: 8mm 0 6mm;
-    }
+  .clinic-address {
+    font-size: 9pt;
+    font-weight: 300;
+    color: #5ab0d8;
+    line-height: 1.4;
+  }
 
-    .meta-field { flex: 1; }
-    .meta-field.small { flex: 0 0 28mm; }
+  .clinic-phone {
+    font-size: 9pt;
+    color: #2a8bbf;
+    font-weight: 400;
+    margin-top: 1mm;
+  }
 
-    .meta-label {
-      font-size: 8px;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: #bbb;
-      margin-bottom: 4px;
-    }
+  .patient-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 3mm;
+    min-width: 70mm;
+  }
 
-    .meta-line {
-      border: none;
-      border-bottom: 0.5px solid #ddd;
-      width: 100%;
-      padding: 4px 0;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 13px;
-      color: #333;
-      background: transparent;
-      outline: none;
-    }
+  .field-line {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    white-space: nowrap;
+  }
 
-    .meta-line:focus { border-bottom-color: #5b2d8e; }
+  .field-label {
+    font-weight: 700;
+    font-size: 11pt;
+    color: #2a8bbf;
+  }
 
-    /* ── Rx HEADER ── */
-    .rx-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 4mm 0 5mm;
-    }
+  .field-dots {
+    flex: 1;
+    min-width: 40mm;
+    margin-bottom: 2px;
+    padding-left: 3mm;
+    font-size: 11pt;
+    color: #333;
+    font-weight: 400;
+  }
 
-    .rx-symbol {
-      font-family: 'DM Serif Display', serif;
-      font-style: italic;
-      font-size: 34px;
-      color: #5b2d8e;
-      line-height: 1;
-    }
+  .age-field {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
 
-    .rx-word {
-      font-size: 9px;
-      letter-spacing: 0.28em;
-      text-transform: uppercase;
-      color: #c0b0d8;
-    }
+  .age-dots {
+    width: 25mm;
+    margin-bottom: 2px;
+    padding-left: 3mm;
+    font-size: 11pt;
+    color: #333;
+    font-weight: 400;
+  }
 
-    .rx-line {
-      flex: 1;
-      height: 0.5px;
-      background: #ede8f5;
-    }
+  .ordonnance-title {
+    text-align: center;
+    font-size: 16pt;
+    font-weight: 700;
+    color: #1a6fa0;
+    letter-spacing: 0.2em;
+    text-decoration: underline;
+    text-underline-offset: 5px;
+    margin: 8mm 0 10mm 0;
+  }
 
-    /* ── WRITE AREA ── */
-    .write-area { flex: 1; margin-top: 5mm; }
+  .body-area {
+    flex: 1;
+    overflow: hidden;
+    padding: 0 5mm;
+  }
 
-    /* ── NOTES ── */
-    .notes-section {
-      margin-top: 6mm;
-      padding-top: 5mm;
-      border-top: 0.5px solid #ede8f0;
-    }
+  .footer {
+    border-top: 1px solid #f0f7fb;
+    padding-top: 5mm;
+    margin-top: 5mm;
+    display: flex;
+    justify-content: flex-end;
+  }
 
-    .notes-label {
-      font-size: 8px;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: #ccc;
-      margin-bottom: 3mm;
-    }
+  .sig-block {
+    text-align: center;
+    min-width: 50mm;
+  }
 
-    /* ── FOOTER (absolute, inside wave) ── */
-    .footer-bar {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      z-index: 2;
-      padding: 0 18mm 8mm 18mm;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 3px;
-    }
+  .sig-label {
+    font-weight: 700;
+    color: #2a8bbf;
+    font-size: 10pt;
+    margin-bottom: 15mm;
+    display: block;
+  }
 
-    .footer-item {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      font-size: 10px;
-      color: #8a7a9e;
-      font-weight: 400;
-    }
+  .sig-line {
+    width: 100%;
+  }
 
-    .footer-icon {
-      width: 14px;
-      height: 14px;
-      flex-shrink: 0;
-      opacity: 0.7;
-    }
-
-
-
-    @media print {
-      body { background: white; padding: 0; }
-      .page { box-shadow: none; width: 100%; }
-      .meta-line { border-bottom: none; }
-    }
+  @media print {
+    body { background: white; }
+    .page { margin: 0; box-shadow: none; }
     @page { size: A4; margin: 0; }
-  </style>
+  }
+</style>
 </head>
 <body>
 <div class="page">
 
-  <!-- BOTTOM WAVE DECORATION -->
-  <svg class="bottom-deco" viewBox="0 0 794 160" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-    <path d="M0,120 C200,60 400,150 794,80 L794,160 L0,160 Z" fill="#ede8f5" opacity="0.55"/>
-    <path d="M0,125 C200,65 420,155 794,82" fill="none" stroke="#b89fd4" stroke-width="0.8" opacity="0.6"/>
-    <path d="M0,130 C200,70 420,160 794,88" fill="none" stroke="#d4c4a8" stroke-width="0.5" opacity="0.5"/>
-  </svg>
+  <div class="clinic-brand">CD Dental Clinic</div>
 
-
-
-  <!-- FOOTER CONTACT -->
-  <div class="footer-bar" style="padding-bottom: 12mm;">
-    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; border-top: 0.5px solid rgba(184, 159, 212, 0.4); padding-top: 12px;">
-      <div class="footer-item" style="color: #5b2d8e; font-family: 'DM Serif Display', serif; font-style: italic; font-weight: 400; font-size: 16px; letter-spacing: 0.02em;">
-        <svg class="footer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: #5b2d8e; width: 18px; height: 18px; margin-bottom: 2px;"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
-        0796 66 73 49
+  <div class="top-row">
+    <div class="header-left">
+      <div class="logo-wrap">
+        <img src="/Dr hakim.png" alt="${doctorInfo?.name || 'Dr. Hakim'}" style="width: 100%; height: 100%; object-fit: contain;" />
       </div>
-      <div class="footer-item" style="color: #5b2d8e; font-family: 'DM Serif Display', serif; font-style: italic; font-weight: 400; font-size: 15px; letter-spacing: 0.01em;">
-        <svg class="footer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="color: #b89fd4; width: 16px; height: 16px; margin-bottom: 2px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-        Zone Aissat Mustapha Cité 90 Lgts "ENCG", Bt 8 N° 01, Réghaia - Alger
+      <div class="clinic-info">
+        <div class="clinic-name">${doctorInfo?.name || 'Dr. Hakim'}</div>
+        <div class="doctor-title">Chirurgien Dentiste</div>
+        <div class="clinic-address">
+          Zone Aissat Mustapha<br>
+          Cité 90 lgts " ENCG " Bt 8<br>
+          N° 01 Réghaia Alger
+        </div>
+        <div class="clinic-phone">0796 66 73 49 / 020 25 49 12</div>
+      </div>
+    </div>
+
+    <div class="patient-fields">
+      <div class="field-line">
+        <span class="field-label">Réghaia le :</span>
+        <span class="field-dots">${new Date(rx.prescription_date || rx.created_at).toLocaleDateString('fr-FR')}</span>
+      </div>
+      <div class="field-line">
+        <span class="field-label">Nom :</span>
+        <span class="field-dots">${rx.patient_name}</span>
+      </div>
+      <div class="age-field">
+        <span class="field-label">Age :</span>
+        <span class="age-dots">${rx.age || '--'} ans</span>
       </div>
     </div>
   </div>
 
-  <!-- MAIN CONTENT -->
-  <div class="content">
+  <div class="ordonnance-title">ORDONNANCE</div>
 
-    <!-- HEADER centered -->
-    <header>
-      <div class="logo-container">
-        <img src="/Dr hakim.png" alt="Dr. Hakim">
-      </div>
-      <div class="doctor-name">${doctorInfo?.name || 'Hakim'}</div>
-      <div class="doctor-title">Chirurgien-Dentiste &nbsp;·&nbsp; CD Dental Clinic</div>
-      <div class="header-divider"></div>
-    </header>
+  <div class="body-area">
+    ${medsHtml}
+    ${rx.notes ? `<div style="margin-top: 8mm; font-size: 10pt; color: #666; font-style: italic; border-top: 1px dashed #aad4eb; padding-top: 3mm;">Note : ${rx.notes}</div>` : ''}
+  </div>
 
-    <!-- META -->
-    <div style="display:flex; align-items:flex-end; gap:24px; margin:8mm 0 6mm; width:100%;">
-      <div style="flex:3;">
-        <div class="meta-label">Nom du patient</div>
-        <div class="meta-line">${rx.patient_name}</div>
-      </div>
-      <div style="flex:1;">
-        <div class="meta-label">Âge</div>
-        <div class="meta-line">${rx.age || '--'} ans</div>
-      </div>
-      <div style="flex:1.5;">
-        <div class="meta-label">Date</div>
-        <div class="meta-line">${new Date(rx.prescription_date || rx.created_at).toLocaleDateString('fr-FR')}</div>
-      </div>
-    </div>
+  <div class="footer">
+  </div>
 
-
-
-    <div class="write-area">
-      ${medsHtml}
-    </div>
-
-    ${rx.notes ? `
-    <div class="notes-section">
-      <div class="notes-label">Notes &amp; Observations</div>
-      <div style="font-size: 13px; color: #555; line-height: 1.6; font-style: italic;">
-        ${rx.notes}
-      </div>
-    </div>
-    ` : ''}
-
-  </div><!-- /content -->
 </div>
 <script>
   window.onload = () => {
@@ -770,12 +732,10 @@ const MedecinDashboard = () => {
             }
 
             if (editingLaboId) {
-                // @ts-ignore
                 const { error } = await supabase.from('labo_orders').update(payload).eq('id', editingLaboId);
                 if (error) throw error;
                 toast.success('Commande mise à jour');
             } else {
-                // @ts-ignore
                 const { error } = await supabase.from('labo_orders').insert([payload]);
                 if (error) throw error;
                 toast.success('Nouvelle commande ajoutée');
@@ -790,7 +750,6 @@ const MedecinDashboard = () => {
 
     const handleLaboDelete = async (id: string) => {
         try {
-            // @ts-ignore
             const { error } = await supabase.from('labo_orders').delete().eq('id', id);
             if (error) throw error;
             toast.success('Commande supprimée');
@@ -803,7 +762,6 @@ const MedecinDashboard = () => {
         try {
             // Optimistic update
             setOrders(orders.map(o => o.id === id ? { ...o, status: newStatus as any } : o));
-            // @ts-ignore
             const { error } = await supabase.from('labo_orders').update({ status: newStatus }).eq('id', id);
             if (error) throw error;
             toast.success('Statut mis à jour');
@@ -831,7 +789,6 @@ const MedecinDashboard = () => {
                 reste: (o.devis || 0) - newVal
             } : o));
 
-            // @ts-ignore
             const { error } = await supabase.from('labo_orders').update({ versement: newVal }).eq('id', laboPaymentOrder.id);
             if (error) throw error;
 
@@ -1623,7 +1580,7 @@ const MedecinDashboard = () => {
 
             {/* ORDONNANCE CREATION MODAL */}
             <Dialog open={showOrdonnanceModal} onOpenChange={setShowOrdonnanceModal}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-[2rem] border-none shadow-2xl p-0">
+                <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto rounded-[2rem] border-none shadow-2xl p-0">
                     <DialogHeader className="p-6 border-b bg-slate-50/50">
                         <DialogTitle className="text-xl font-black italic text-primary flex items-center gap-2">
                             <FileText className="h-6 w-6" /> Nouvelle Ordonnance
@@ -1662,9 +1619,9 @@ const MedecinDashboard = () => {
                                             </Button>
                                         )}
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-2 relative">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Médicament</label>
+                                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                                            <div className="md:col-span-3 space-y-1">
+                                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Médicament</label>
                                                 <Select
                                                     value={med.name}
                                                     onValueChange={(val) => {
@@ -1684,8 +1641,8 @@ const MedecinDashboard = () => {
                                                         }
                                                     }}
                                                 >
-                                                    <SelectTrigger className="flex h-11 w-full rounded-xl border border-slate-200 bg-background px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/30">
-                                                        <SelectValue placeholder="Choisir un médicament" />
+                                                    <SelectTrigger className="flex h-10 w-full rounded-xl border border-slate-200 bg-background px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/30">
+                                                        <SelectValue placeholder="Choisir..." />
                                                     </SelectTrigger>
                                                     <SelectContent className="max-h-80 rounded-2xl border-slate-200 shadow-xl overflow-hidden p-0">
                                                         <div className="p-2 border-b bg-slate-50/50">
@@ -1698,7 +1655,7 @@ const MedecinDashboard = () => {
                                                                     setShowAddMedModal(true);
                                                                 }}
                                                             >
-                                                                <Plus className="h-3 w-3 mr-1" /> Nouveau Médicament
+                                                                <Plus className="h-3 w-3 mr-1" /> Nouveau
                                                             </Button>
                                                         </div>
                                                         <ScrollArea className="h-full max-h-60">
@@ -1719,45 +1676,30 @@ const MedecinDashboard = () => {
                                                 </Select>
                                             </div>
 
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Dosage</label>
+                                            <div className="md:col-span-2 space-y-1">
+                                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Nb cp</label>
                                                 <Input
-                                                    placeholder="Ex: 500mg, 1g..."
+                                                    placeholder="1cp..."
                                                     value={med.dosage}
                                                     onChange={e => updateMedication(idx, 'dosage', e.target.value)}
-                                                    className="rounded-xl h-11 border-slate-200"
+                                                    className="rounded-xl h-10 border-slate-200 text-xs font-bold"
                                                 />
-                                                <div className="flex flex-wrap gap-1">
-                                                    {dbMedications.find(m => m.name === med.name)?.variants?.map((v: any, vIdx: number) => (
-                                                        <Badge
-                                                            key={vIdx}
-                                                            variant="outline"
-                                                            className={cn(
-                                                                "cursor-pointer text-[9px] px-2 py-0 h-5 border-slate-200 hover:bg-primary/5",
-                                                                med.dosage === v.dosage ? "bg-primary/10 border-primary text-primary" : ""
-                                                            )}
-                                                            onClick={() => hydrateMedicationFromVariant(dbMedications.find(m => m.name === med.name), vIdx, idx)}
-                                                        >
-                                                            {v.dosage}
-                                                        </Badge>
-                                                    ))}
-                                                </div>
                                             </div>
-                                        </div>
 
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-400">Durée</label>
-                                                <Input placeholder="7 jours" value={med.duree} onChange={e => updateMedication(idx, 'duree', e.target.value)} className="rounded-xl h-9 border-slate-100" />
+                                            <div className="md:col-span-2 space-y-1">
+                                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Durée</label>
+                                                <Input placeholder="7 jours" value={med.duree} onChange={e => updateMedication(idx, 'duree', e.target.value)} className="rounded-xl h-10 border-slate-200 text-xs font-bold" />
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-400">Fréquence (/j)</label>
-                                                <Input type="number" value={med.frequency_count} onChange={e => updateMedication(idx, 'frequency_count', e.target.value)} className="rounded-xl h-9 border-slate-100" />
+
+                                            <div className="md:col-span-1 space-y-1">
+                                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Fréq.</label>
+                                                <Input type="number" value={med.frequency_count} onChange={e => updateMedication(idx, 'frequency_count', e.target.value)} className="rounded-xl h-10 border-slate-200 text-xs font-bold" />
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-400">Unité</label>
+
+                                            <div className="md:col-span-2 space-y-1">
+                                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Unité</label>
                                                 <Select value={med.frequency_unit} onValueChange={(val) => updateMedication(idx, 'frequency_unit', val)}>
-                                                    <SelectTrigger className="rounded-xl h-9 border-slate-100"><SelectValue /></SelectTrigger>
+                                                    <SelectTrigger className="rounded-xl h-10 border-slate-200 text-xs font-bold"><SelectValue /></SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="comprimé(s)">Comp.</SelectItem>
                                                         <SelectItem value="gélule(s)">Gél.</SelectItem>
@@ -1766,10 +1708,11 @@ const MedecinDashboard = () => {
                                                     </SelectContent>
                                                 </Select>
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-400">Moment</label>
+
+                                            <div className="md:col-span-2 space-y-1">
+                                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Moment</label>
                                                 <Select value={med.timing} onValueChange={(val) => updateMedication(idx, 'timing', val)}>
-                                                    <SelectTrigger className="rounded-xl h-9 border-slate-100"><SelectValue /></SelectTrigger>
+                                                    <SelectTrigger className="rounded-xl h-10 border-slate-200 text-xs font-bold"><SelectValue /></SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="avant">Avant repas</SelectItem>
                                                         <SelectItem value="apres">Après repas</SelectItem>
@@ -1790,10 +1733,7 @@ const MedecinDashboard = () => {
                             </div>
                         </div>
 
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Notes (Optionnel)</label>
-                            <Input placeholder="Observations générales..." value={ordonnanceFormData.notes} onChange={e => setOrdonnanceFormData({ ...ordonnanceFormData, notes: e.target.value })} className="rounded-xl border-slate-200" />
-                        </div>
+
                     </div>
                     <DialogFooter className="p-6 bg-slate-50/50 flex gap-2">
                         <Button variant="ghost" onClick={() => setShowOrdonnanceModal(false)} className="rounded-xl font-bold">Annuler</Button>
@@ -1826,9 +1766,9 @@ const MedecinDashboard = () => {
                             />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Dosage par défaut</label>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nombre de cp (défaut)</label>
                             <Input
-                                placeholder="ex: 1g"
+                                placeholder="ex: 1cp"
                                 value={newMedFormData.dosage}
                                 onChange={e => setNewMedFormData({ ...newMedFormData, dosage: e.target.value })}
                                 className="rounded-xl border-slate-200"
@@ -1999,6 +1939,10 @@ const MedecinDashboard = () => {
                                 className="rounded-xl border-slate-200 h-12 text-lg font-black"
                                 autoFocus
                             />
+                            useQueue.ts:260 [addClient] error → null value in column "client_name" of relation "queue_entries" violates not-null constraint Failing row contains (a580c717-bcc7-411b-bfc6-feb6ab8cec03, 312142be-e787-484e-b23f-b19ecc0eacde, 2d01d5ec-9357-4404-854c-a6cefaf4d1d5, null, 0123456789, N1C, N, 1, 1, waiting, null, 2026-06-01 12:40:15.71355+00, 6, ismail test). null 23502
+                            (anonymous)	@	useQueue.ts:260
+                            await in (anonymous)
+                            (anonymous)	@	Accueil.tsx:313
                         </div>
                     </div>
                     <DialogFooter className="p-6 bg-slate-50/50 flex gap-2">
