@@ -120,7 +120,7 @@ const TV = () => {
 
     const { data: allSessionEntries } = await supabase
       .from('queue_entries')
-      .select('id, status, client_id, patient_name, doctor_id, state, state_number, doctor:doctors(name, initial)')
+      .select('id, status, client_id, patient_name, doctor_id, state, state_number, created_at, doctor:doctors(name, initial)')
       .eq('session_id', session.id);
 
     const waitingEntries = (allSessionEntries || []).filter(e => e.status === 'waiting');
@@ -156,22 +156,12 @@ const TV = () => {
         e => e.doctor_id === doctor.id
       );
       const sorted = [...doctorEntries].sort((a, b) => {
+        // 1. U (Urgent) always has absolute priority
         if (a.state === 'U' && b.state !== 'U') return -1;
         if (a.state !== 'U' && b.state === 'U') return 1;
-        if (a.state === 'U' && b.state === 'U') return a.state_number - b.state_number;
 
-        const getRank = (e: any) => {
-          const num = e.state_number || 0;
-          if (e.state === 'N') return num * 2 - 1;
-          if (e.state === 'R') return num * 2;
-          return 999;
-        };
-
-        const rankA = getRank(a);
-        const rankB = getRank(b);
-
-        if (rankA !== rankB) return rankA - rankB;
-        return (a.state_number || 0) - (b.state_number || 0);
+        // 2. For others (N and R), or if both are U, sort by arrival time
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       });
       return {
         doctor,

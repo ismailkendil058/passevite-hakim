@@ -13,10 +13,11 @@ import { toast } from 'sonner';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
-    FlaskConical, Search, Plus, Trash2, Pencil, CreditCard,
+    Search, Plus, Trash2, Pencil, CreditCard,
     Wallet, DollarSign, Clock, LayoutDashboard, ChevronLeft
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { ToothIcon } from '@/components/icons/ToothIcon';
 
 interface LaboOrder {
     id: string;
@@ -138,7 +139,6 @@ export default function LaboPage() {
 
     const handleSave = async () => {
         try {
-            const finalLaboratoire = customLabo ? formData.laboratoire : formData.laboratoire;
             const payload = {
                 date_reception: formData.date_reception || format(new Date(), 'yyyy-MM-dd'),
                 client_name: formData.client_name || '',
@@ -302,7 +302,7 @@ export default function LaboPage() {
                     </Button>
                     <div>
                         <h1 className="text-lg sm:text-xl font-bold flex items-center gap-2 text-primary">
-                            <FlaskConical className="h-5 w-5" />
+                            <ToothIcon className="h-5 w-5" />
                             Suivi Labo
                         </h1>
                         <p className="text-xs text-muted-foreground">Gestion des prothèses et travaux</p>
@@ -315,7 +315,7 @@ export default function LaboPage() {
 
             <div className="p-3 sm:p-4 space-y-4 flex-1">
                 {/* Stats Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                     <Card className="border-0 shadow-sm bg-muted/30">
                         <CardContent className="p-4">
                             <div className="flex items-center gap-2 text-muted-foreground mb-2">
@@ -323,24 +323,6 @@ export default function LaboPage() {
                                 <h3 className="text-sm font-medium">Total Devis (Mois)</h3>
                             </div>
                             <p className="text-2xl font-bold">{stats.totalDevis.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">DA</span></p>
-                        </CardContent>
-                    </Card>
-                    <Card className="border-0 shadow-sm bg-green-50/50">
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-2 text-green-700 mb-2">
-                                <DollarSign className="h-4 w-4" />
-                                <h3 className="text-sm font-medium">Total Encaissé</h3>
-                            </div>
-                            <p className="text-2xl font-bold text-green-700">{stats.totalCashed.toLocaleString()} <span className="text-sm font-normal opacity-70">DA</span></p>
-                        </CardContent>
-                    </Card>
-                    <Card className="border-0 shadow-sm bg-red-50/50">
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-2 text-red-700 mb-2">
-                                <LayoutDashboard className="h-4 w-4" />
-                                <h3 className="text-sm font-medium">Total Reste</h3>
-                            </div>
-                            <p className="text-2xl font-bold text-red-700">{stats.totalReste.toLocaleString()} <span className="text-sm font-normal opacity-70">DA</span></p>
                         </CardContent>
                     </Card>
                     <Card className="border-0 shadow-sm bg-yellow-50/50">

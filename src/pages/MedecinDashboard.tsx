@@ -16,7 +16,7 @@ import {
     PieChart, DollarSign, Activity, FileDown, Edit3,
     X, Printer, ClipboardList, CheckCircle2, ChevronRight,
     LayoutDashboard, MapPin, Phone, ArrowUpRight, User, Trash2,
-    Calendar as CalIcon, MessageSquare, XCircle, FlaskConical, Pencil, CreditCard, Wallet, ChevronLeft
+    Calendar as CalIcon, MessageSquare, XCircle, Pencil, CreditCard, Wallet, ChevronLeft
 } from 'lucide-react';
 import { format, parseISO, startOfToday, endOfToday, startOfDay, startOfMonth, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
+import { ToothIcon } from '@/components/icons/ToothIcon';
 import { cn, getPersistentAuth } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -954,7 +955,7 @@ const MedecinDashboard = () => {
                             <span className="hidden md:inline">Patients</span>
                         </TabsTrigger>
                         <TabsTrigger value="labo" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                            <FlaskConical className="h-4 w-4 md:mr-2" />
+                            <ToothIcon className="h-4 w-4 md:mr-2" />
                             <span className="hidden md:inline">Labo</span>
                         </TabsTrigger>
                         <TabsTrigger value="analytics" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
@@ -1218,7 +1219,7 @@ const MedecinDashboard = () => {
                             </div>
 
                             {/* Stats Cards */}
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div className="grid grid-cols-2 gap-3">
                                 <Card className="border-0 shadow-premium bg-white">
                                     <CardContent className="p-4">
                                         <div className="flex items-center gap-2 text-muted-foreground mb-2">
@@ -1226,24 +1227,6 @@ const MedecinDashboard = () => {
                                             <h3 className="text-xs font-bold uppercase tracking-widest">Total Devis</h3>
                                         </div>
                                         <p className="text-2xl font-black text-slate-800">{laboStats.totalDevis.toLocaleString()} <span className="text-xs font-normal">DA</span></p>
-                                    </CardContent>
-                                </Card>
-                                <Card className="border-0 shadow-premium bg-emerald-50/50">
-                                    <CardContent className="p-4">
-                                        <div className="flex items-center gap-2 text-emerald-700 mb-2">
-                                            <DollarSign className="h-4 w-4" />
-                                            <h3 className="text-xs font-bold uppercase tracking-widest">Total Encaissé</h3>
-                                        </div>
-                                        <p className="text-2xl font-black text-emerald-700">{laboStats.totalCashed.toLocaleString()} <span className="text-xs font-normal">DA</span></p>
-                                    </CardContent>
-                                </Card>
-                                <Card className="border-0 shadow-premium bg-rose-50/50">
-                                    <CardContent className="p-4">
-                                        <div className="flex items-center gap-2 text-rose-700 mb-2">
-                                            <TrendingUp className="h-4 w-4" />
-                                            <h3 className="text-xs font-bold uppercase tracking-widest">Total Reste</h3>
-                                        </div>
-                                        <p className="text-2xl font-black text-rose-700">{laboStats.totalReste.toLocaleString()} <span className="text-xs font-normal">DA</span></p>
                                     </CardContent>
                                 </Card>
                                 <Card className="border-0 shadow-premium bg-amber-50/50">
@@ -1841,7 +1824,7 @@ const MedecinDashboard = () => {
                 <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto rounded-[2rem] border-none shadow-2xl p-0">
                     <DialogHeader className="p-6 border-b bg-slate-50/50">
                         <DialogTitle className="text-xl font-black italic text-primary flex items-center gap-2">
-                            <FlaskConical className="h-6 w-6" />
+                            <ToothIcon className="h-6 w-6" />
                             {editingLaboId ? 'Modifier la commande' : 'Nouvel envoi Labo'}
                         </DialogTitle>
                     </DialogHeader>

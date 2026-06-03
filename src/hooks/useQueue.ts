@@ -87,22 +87,8 @@ export function useQueue() {
       // 1. U (Urgent) always has absolute priority
       if (a.state === 'U' && b.state !== 'U') return -1;
       if (a.state !== 'U' && b.state === 'U') return 1;
-      if (a.state === 'U' && b.state === 'U') return a.state_number - b.state_number;
 
-      // 2. For N (New) and R (Appointment), alternate: N1, R1, N2, R2, ...
-      const getRank = (e: QueueEntry) => {
-        const num = e.state_number || 0;
-        if (e.state === 'N') return num * 2 - 1; // N1->1, N2->3, N3->5
-        if (e.state === 'R') return num * 2;     // R1->2, R2->4, R3->6
-        return 999;
-      };
-
-      const rankA = getRank(a);
-      const rankB = getRank(b);
-
-      if (rankA !== rankB) return rankA - rankB;
-
-      // Secondary sort for items with same rank (different doctors) or unknown states
+      // 2. For all others (N and R), or if both are U, sort by arrival time (first come first served)
       return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     });
   };

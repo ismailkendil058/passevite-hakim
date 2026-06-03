@@ -653,7 +653,7 @@ const Accueil = () => {
     <div className="min-h-[100dvh] bg-background flex flex-col">
       {/* Header */}
       <header className="flex items-center justify-between p-3 sm:p-4 lg:px-8 lg:py-4 border-b sticky top-0 bg-background z-10">
-        <div className="flex items-center gap-2.5 lg:gap-4">
+        <Link to="/" className="flex items-center gap-2.5 lg:gap-4 hover:opacity-80 transition-opacity">
           <div className="p-1 lg:p-2 rounded-lg bg-white shadow-lg shadow-primary/5 border border-primary/5 shrink-0 hidden sm:block">
             <img src="/Dr hakim.png" alt="Logo" className="h-6 w-6 lg:h-9 lg:w-9 object-contain" />
           </div>
@@ -665,7 +665,7 @@ const Accueil = () => {
               Le soin qui passe vite
             </p>
           </div>
-        </div>
+        </Link>
         <div className="flex gap-1.5 sm:gap-2 lg:gap-3 mx-auto">
           <Button onClick={async () => {
             await fetchTodayClients();

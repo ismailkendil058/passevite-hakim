@@ -1,13 +1,14 @@
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
-import { Monitor, UserCog, UserCheck, FlaskConical, Package } from 'lucide-react';
+import { Monitor, UserCog, UserCheck, Package } from 'lucide-react';
+import { ToothIcon } from '@/components/icons/ToothIcon';
 
 const Index = () => {
   const sections = [
     { title: 'Accueil', description: 'Gestion de la reception et de la file', icon: Monitor, href: '/accueil/login', variant: 'outline' as const },
     { title: 'Manager', description: 'Tableau de bord analytique', icon: UserCog, href: '/manager/login', variant: 'outline' as const },
     { title: 'Docteur', description: 'Tableau de bord de soins', icon: UserCheck, href: '/doctor/login', variant: 'outline' as const },
-    { title: 'Laboratoire', description: 'Suivi des envois & prothèses', icon: FlaskConical, href: '/labo', variant: 'outline' as const },
+    { title: 'Laboratoire', description: 'Suivi des envois & prothèses', icon: ToothIcon, href: '/labo', variant: 'outline' as const },
     { title: 'Inventaire', description: 'Gestion du stock & produits', icon: Package, href: '/inventaire', variant: 'outline' as const },
   ];
 

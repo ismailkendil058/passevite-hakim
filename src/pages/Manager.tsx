@@ -154,10 +154,10 @@ const Manager = () => {
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col">
       <header className="flex items-center justify-between p-3 sm:p-4 border-b sticky top-0 bg-background z-10">
-        <div>
+        <Link to="/" className="hover:opacity-80 transition-opacity">
           <h1 className="text-lg sm:text-xl font-bold text-foreground italic">PasseVite</h1>
           <p className="text-[10px] text-muted-foreground uppercase">le soin qui passe</p>
-        </div>
+        </Link>
         <div className="flex items-center gap-2">
           <FeedbackStats />
 
