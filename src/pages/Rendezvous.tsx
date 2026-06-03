@@ -538,12 +538,40 @@ const Rendezvous = () => {
     };
 
     const handleSendSMS = (phone: string, name: string, time: string) => {
-        const message = `CD clinique dentaire : votre rendez-vous avec notre équipe est dans 24h. Merci de confirmer votre présence.`;
+        const message = `مرحبًا،
+
+نود تذكيركم بأن موعدكم في عيادة CD Dental Clinic سيكون بعد 24 ساعة.
+
+حرصًا منا على تنظيم جدول المواعيد بأفضل شكل ممكن، نرجو منكم التكرم بتأكيد حضوركم من خلال الرد على هذه الرسالة.
+
+نحن في خدمتكم للإجابة عن أي استفسار.
+
+Nous vous rappelons que votre rendez-vous à la CD Dental Clinic est prévu dans 24 heures.
+
+Afin de nous permettre d'organiser au mieux notre planning, nous vous remercions de bien vouloir confirmer votre présence en répondant à ce message.
+
+Nous restons à votre disposition pour toute question.
+
+L'équipe de CD Dental Clinic.`;
         window.open(`sms:${phone}?body=${encodeURIComponent(message)}`, '_blank');
     };
 
     const handleSendWhatsApp = (phone: string, name: string, time: string) => {
-        const message = `CD clinique dentaire : votre rendez-vous avec notre équipe est dans 24h. Merci de confirmer votre présence.`;
+        const message = `مرحبًا،
+
+نود تذكيركم بأن موعدكم في عيادة CD Dental Clinic سيكون بعد 24 ساعة.
+
+حرصًا منا على تنظيم جدول المواعيد بأفضل شكل ممكن، نرجو منكم التكرم بتأكيد حضوركم من خلال الرد على هذه الرسالة.
+
+نحن في خدمتكم للإجابة عن أي استفسار.
+
+Nous vous rappelons que votre rendez-vous à la CD Dental Clinic est prévu dans 24 heures.
+
+Afin de nous permettre d'organiser au mieux notre planning, nous vous remercions de bien vouloir confirmer votre présence en répondant à ce message.
+
+Nous restons à votre disposition pour toute question.
+
+L'équipe de CD Dental Clinic.`;
         const normalizePhoneForWhatsApp = (p: string) => {
             let digits = (p || '').replace(/\D/g, '');
             if (!digits) return '';
