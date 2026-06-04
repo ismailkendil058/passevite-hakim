@@ -1,14 +1,12 @@
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Monitor, UserCog, UserCheck, Package } from 'lucide-react';
-import { ToothIcon } from '@/components/icons/ToothIcon';
 
 const Index = () => {
   const sections = [
     { title: 'Accueil', description: 'Gestion de la reception et de la file', icon: Monitor, href: '/accueil/login', variant: 'outline' as const },
     { title: 'Manager', description: 'Tableau de bord analytique', icon: UserCog, href: '/manager/login', variant: 'outline' as const },
     { title: 'Docteur', description: 'Tableau de bord de soins', icon: UserCheck, href: '/doctor/login', variant: 'outline' as const },
-    { title: 'Laboratoire', description: 'Suivi des envois & prothèses', icon: ToothIcon, href: '/labo', variant: 'outline' as const },
     { title: 'Inventaire', description: 'Gestion du stock & produits', icon: Package, href: '/inventaire', variant: 'outline' as const },
   ];
 
@@ -34,7 +32,7 @@ const Index = () => {
         <div className="h-1.5 w-16 lg:w-32 bg-primary/20 mx-auto mt-10 lg:mt-16 rounded-full" />
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-8 w-full max-w-[90rem] relative z-10 justify-center px-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-8 w-full max-w-[90rem] relative z-10 justify-center px-4">
         {sections.map(({ title, description, icon: Icon, href }, index) => (
           <Link
             key={href}
