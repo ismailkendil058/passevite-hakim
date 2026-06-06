@@ -556,6 +556,21 @@ const Accueil = () => {
     }
   };
 
+    const handleReturnToQueue = async () => {
+      if (!selectedEntry) return;
+      try {
+        const { error } = await updateClient(selectedEntry.id, { status: 'waiting' as any });
+        if (error) {
+          toast.error('Erreur lors du retour à la file');
+          return;
+        }
+        toast.success('Patient renvoyé à la file d\'attente');
+        setShowCompleteModal(false);
+      } catch (err) {
+        toast.error('Erreur lors du retour à la file');
+      }
+    };
+
   const handleEdit = (entry: QueueEntry) => {
     setEditEntry(entry);
     setEditPhone(entry.phone);
@@ -1254,7 +1269,10 @@ const Accueil = () => {
 
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="space-y-2 sm:space-y-0 sm:flex sm:gap-3">
+            <Button onClick={handleReturnToQueue} variant="outline" className="w-full h-11 sm:h-12">
+              Retour à la file
+            </Button>
             <Button onClick={handleComplete} disabled={isCompletingClient} className="w-full h-11 sm:h-12">
               {isCompletingClient ? 'Enregistrement...' : 'Confirmer'}
             </Button>

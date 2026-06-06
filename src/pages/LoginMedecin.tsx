@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Users } from 'lucide-react';
+import { Users, ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { setPersistentAuth } from '@/lib/utils';
 
@@ -58,7 +58,13 @@ const LoginMedecin = () => {
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-[#FBF9FF] p-4 font-sans selection:bg-[#64409a]/30">
+        <div className="flex min-h-screen items-center justify-center bg-[#FBF9FF] p-4 font-sans selection:bg-[#64409a]/30 relative">
+            <Link
+                to="/"
+                className="absolute top-6 left-6 flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors font-medium text-sm"
+            >
+                <ArrowLeft className="h-4 w-4" /> Retour
+            </Link>
             <Card className="w-full max-w-md lg:max-w-lg shadow-2xl border-none rounded-[2.5rem] bg-white overflow-hidden">
                 <CardHeader className="text-center space-y-6 lg:space-y-8 pt-10 lg:pt-14 pb-2 relative">
                     <div className="mx-auto block">

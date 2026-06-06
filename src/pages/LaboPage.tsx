@@ -37,6 +37,8 @@ interface LaboOrder {
 const TYPE_SUGGESTIONS = ['B ceramique', 'Zirconne', 'Résine', 'Bridge', '4 éléments'];
 const TEINTE_OPTIONS = ['A1', 'A2', 'A3', 'A3.5', 'A4', 'B1', 'B2', 'B3', 'B4', 'C1', 'D2'];
 const STATUS_OPTIONS = ['En cours', 'Au labo', 'Livré', 'Problème'];
+
+const displayStatus = (s: string) => s === 'Problème' ? 'daulirence' : s;
 const DEFAULT_LABOS = ['NewSmile', 'MEDDOUR', 'Youcef', 'new smille'];
 
 export default function LaboPage() {
@@ -77,13 +79,16 @@ export default function LaboPage() {
             })
             .subscribe();
 
+        const intervalId = setInterval(() => fetchOrders(false), 500);
+
         return () => {
+            clearInterval(intervalId);
             supabase.removeChannel(channel);
         };
     }, [dateFrom, dateTo]);
 
-    const fetchOrders = async () => {
-        setLoading(true);
+    const fetchOrders = async (showLoading = true) => {
+        if (showLoading) setLoading(true);
         // @ts-ignore
         let query = supabase
             .from('labo_orders')
@@ -104,7 +109,7 @@ export default function LaboPage() {
             }));
             setOrders(mapped as LaboOrder[]);
         }
-        setLoading(false);
+        if (showLoading) setLoading(false);
     };
 
     const filteredOrders = useMemo(() => {
@@ -169,6 +174,7 @@ export default function LaboPage() {
 
             setShowAddModal(false);
             resetForm();
+            await fetchOrders();
         } catch (error: any) {
             toast.error('Erreur: ' + error.message);
         }
@@ -180,6 +186,7 @@ export default function LaboPage() {
             const { error } = await supabase.from('labo_orders').delete().eq('id', id);
             if (error) throw error;
             toast.success('Commande supprimée');
+            await fetchOrders();
         } catch (error: any) {
             toast.error('Erreur lors de la suppression');
         }
@@ -284,7 +291,7 @@ export default function LaboPage() {
             case 'Au labo':
                 return <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-200">Au labo</Badge>;
             case 'Problème':
-                return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200">Problème</Badge>;
+                return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200">daulirence</Badge>;
             default:
                 return <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200">En cours</Badge>;
         }
@@ -343,7 +350,7 @@ export default function LaboPage() {
                             <TabsTrigger value="Tous">Tous</TabsTrigger>
                             <TabsTrigger value="Au labo">Au labo</TabsTrigger>
                             <TabsTrigger value="Livré">Livré</TabsTrigger>
-                            <TabsTrigger value="Problème">Problème</TabsTrigger>
+                            <TabsTrigger value="Problème">daulirence</TabsTrigger>
                         </TabsList>
                     </Tabs>
 
@@ -417,7 +424,7 @@ export default function LaboPage() {
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         {STATUS_OPTIONS.map(opt => (
-                                                            <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
+                                                            <SelectItem key={opt} value={opt} className="text-xs">{displayStatus(opt)}</SelectItem>
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
@@ -555,7 +562,7 @@ export default function LaboPage() {
                             <Select value={formData.status} onValueChange={v => setFormData({ ...formData, status: v as any })}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    {STATUS_OPTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                    {STATUS_OPTIONS.map(t => <SelectItem key={t} value={t}>{displayStatus(t)}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>

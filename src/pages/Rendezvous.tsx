@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -120,13 +120,17 @@ const Rendezvous = () => {
         apptNotes: ''
     });
 
-    const fetchActiveSession = async () => {
+    const fetchActiveSession = useCallback(async () => {
         const { data } = await supabase.from('sessions').select('id').eq('is_active', true).limit(1).maybeSingle();
         if (data) setActiveSessionId(data.id);
-    };
+    }, []);
 
-    const fetchInitialData = async () => {
-        setLoading(true);
+    const isFetchingInitialData = useRef(false);
+
+    const fetchInitialData = useCallback(async (showLoading = true) => {
+        if (isFetchingInitialData.current) return;
+        isFetchingInitialData.current = true;
+        if (showLoading) setLoading(true);
         try {
             await fetchActiveSession();
             // Fetch Appointments
@@ -151,11 +155,12 @@ const Rendezvous = () => {
             console.error('Error fetching initial data:', error);
             toast.error('Erreur lors du chargement des données');
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
+            isFetchingInitialData.current = false;
         }
-    };
+    }, [fetchActiveSession]);
 
-    const fetchClients = async () => {
+    const fetchClients = useCallback(async () => {
         let q = supabase
             .from('completed_clients')
             .select('*');
@@ -428,15 +433,21 @@ const Rendezvous = () => {
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'appointments' },
                 () => {
-                    fetchInitialData();
+                    fetchInitialData(false);
                 }
             )
             .subscribe();
 
+        const intervalId = setInterval(() => {
+            fetchInitialData(false);
+            fetchClients();
+        }, 500);
+
         return () => {
+            clearInterval(intervalId);
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, [fetchInitialData, fetchClients]);
 
     // Fetch clients with server-side debounce for scalability
     useEffect(() => {

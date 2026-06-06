@@ -157,6 +157,8 @@ const MedecinDashboard = () => {
         variants: med.variants || []
     });
 
+    const displayStatus = (s: string) => s === 'Problème' ? 'daulirence' : s;
+
     const fetchMeds = async () => {
         try {
             const { data, error } = await supabase
@@ -639,9 +641,9 @@ const MedecinDashboard = () => {
     };
 
     // LABO FUNCTIONS
-    const fetchLaboOrders = async () => {
+    const fetchLaboOrders = async (showLoading = true) => {
         if (!doctorInfo) return;
-        setLaboLoading(true);
+        if (showLoading) setLaboLoading(true);
         // @ts-ignore
         let query = supabase
             .from('labo_orders')
@@ -663,7 +665,7 @@ const MedecinDashboard = () => {
             }));
             setOrders(mapped as LaboOrder[]);
         }
-        setLaboLoading(false);
+        if (showLoading) setLaboLoading(false);
     };
 
     useEffect(() => {
@@ -674,11 +676,14 @@ const MedecinDashboard = () => {
         const channel = supabase
             .channel('labo_orders_changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'labo_orders' }, () => {
-                fetchLaboOrders();
+                fetchLaboOrders(false);
             })
             .subscribe();
 
+        const intervalId = setInterval(() => fetchLaboOrders(false), 500);
+
         return () => {
+            clearInterval(intervalId);
             supabase.removeChannel(channel);
         };
     }, [dateFrom, dateTo, doctorInfo]);
@@ -853,7 +858,7 @@ const MedecinDashboard = () => {
             case 'Au labo':
                 return <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-200">Au labo</Badge>;
             case 'Problème':
-                return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200">Problème</Badge>;
+                return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200">daulirence</Badge>;
             default:
                 return <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200">En cours</Badge>;
         }
@@ -1247,7 +1252,7 @@ const MedecinDashboard = () => {
                                         <TabsTrigger value="Tous">Tous</TabsTrigger>
                                         <TabsTrigger value="Au labo">Au labo</TabsTrigger>
                                         <TabsTrigger value="Livré">Livré</TabsTrigger>
-                                        <TabsTrigger value="Problème">Problème</TabsTrigger>
+                                        <TabsTrigger value="Problème">daulirence</TabsTrigger>
                                     </TabsList>
                                 </Tabs>
 
@@ -1307,7 +1312,7 @@ const MedecinDashboard = () => {
                                                                     {getLaboStatutBadge(order.status)}
                                                                 </SelectTrigger>
                                                                 <SelectContent className="rounded-xl border-none shadow-xl">
-                                                                    {STATUS_OPTIONS.map(opt => <SelectItem key={opt} value={opt} className="text-[10px] font-bold">{opt}</SelectItem>)}
+                                                                    {STATUS_OPTIONS.map(opt => <SelectItem key={opt} value={opt} className="text-[10px] font-bold">{displayStatus(opt)}</SelectItem>)}
                                                                 </SelectContent>
                                                             </Select>
                                                         </TableCell>
@@ -1863,7 +1868,7 @@ const MedecinDashboard = () => {
                             <Select value={laboFormData.status} onValueChange={v => setLaboFormData({ ...laboFormData, status: v as any })}>
                                 <SelectTrigger className="rounded-xl border-slate-200"><SelectValue /></SelectTrigger>
                                 <SelectContent className="rounded-xl border-none shadow-xl">
-                                    {STATUS_OPTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                    {STATUS_OPTIONS.map(t => <SelectItem key={t} value={t}>{displayStatus(t)}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
