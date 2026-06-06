@@ -173,7 +173,7 @@ const Rendezvous = () => {
 
         const { data } = await q;
         if (data) setClients(data as any);
-    };
+    }, [searchQuery]);
 
     const handleSaveVisit = async (visit: Partial<CompletedClient & { apptDate?: Date; apptTime?: string; apptDoctor?: string; apptNotes?: string }>) => {
         if (!visit.client_name || !visit.phone) {
