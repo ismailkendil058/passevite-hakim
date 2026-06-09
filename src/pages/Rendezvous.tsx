@@ -22,6 +22,7 @@ import QrScannerModal from '@/components/QrScannerModal';
 import { format, addHours, isWithinInterval, startOfDay, endOfDay, parseISO, startOfToday, endOfToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 interface CompletedClient {
     id: string;
@@ -1459,7 +1460,7 @@ L'équipe de CD Dental Clinic.`;
 
                                                 {/* Time Background Grid Lines */}
                                                 <div className="absolute inset-0 pt-10 pointer-events-none">
-                                                    {['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'].map((t, idx) => (
+                                                    {['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'].map((t, idx) => (
                                                         <div
                                                             key={t}
                                                             className="absolute left-0 w-full border-t border-muted/30 flex items-start"
@@ -1477,7 +1478,7 @@ L'équipe de CD Dental Clinic.`;
                                                     <div
                                                         className="absolute left-0 right-0 border-t-2 border-rose-500/50 z-30 pointer-events-none flex items-center"
                                                         style={{
-                                                            top: `${(new Date().getHours() - 8) * 80 + (new Date().getMinutes() / 60) * 80 + 50}px`,
+                                                            top: `${(new Date().getHours() - 6) * 80 + (new Date().getMinutes() / 60) * 80 + 50}px`,
                                                             transition: 'top 60s linear'
                                                         }}
                                                     >
@@ -1487,7 +1488,7 @@ L'équipe de CD Dental Clinic.`;
                                                 )}
 
                                                 {/* Doctor Columns */}
-                                                <div className={`ml-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 min-h-full ${selectedDoctorMobile === 'all' ? 'min-w-[700px] sm:min-w-0' : ''}`}>
+                                                <div className={`ml-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 min-h-full ${selectedDoctorMobile === 'all' ? 'min-w-[1000px] lg:min-w-0' : ''}`}>
                                                     {doctors
                                                         .filter(d => selectedDoctorMobile === 'all' || d.id === selectedDoctorMobile)
                                                         .map(doctor => (
@@ -1523,43 +1524,61 @@ L'équipe de CD Dental Clinic.`;
                                                                             const date = parseISO(appt.appointment_at);
                                                                             const h = date.getHours();
                                                                             const m = date.getMinutes();
-                                                                            const offset = (h - 8) * 80 + (m / 60) * 80;
+                                                                            const offset = (h - 6) * 80 + (m / 60) * 80;
 
                                                                             const group = hourGroups[h] || [];
                                                                             const index = group.findIndex(a => a.id === appt.id);
                                                                             const total = group.length;
-                                                                            const isOverlapping = total > 1;
+
+                                                                            const isDense = total > 4;
+                                                                            const rows = isDense ? 2 : 1;
+                                                                            const cols = isDense ? Math.ceil(total / 2) : total;
+                                                                            const rowIndex = isDense ? (index >= cols ? 1 : 0) : 0;
+                                                                            const colIndex = isDense ? (index % cols) : index;
 
                                                                             return (
                                                                                 <div
                                                                                     key={appt.id}
                                                                                     className={`
-                                                                                        absolute p-3 rounded-2xl border-l-[6px] 
+                                                                                        absolute p-3 rounded-2xl border-l-[4px] 
                                                                                         shadow-xl shadow-primary/5 transition-all duration-300 
                                                                                         hover:scale-[1.02] active:scale-95 z-20 cursor-pointer group
                                                                                         bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-primary/5
-                                                                                        ${isOverlapping ? (index === 0 ? 'left-2 w-[calc(50%-12px)]' : 'right-2 w-[calc(50%-12px)]') : 'left-2 right-2'}
                                                                                         ${appt.status === 'coming' ? 'border-l-emerald-500 shadow-emerald-500/10' :
                                                                                             appt.status === 'denied' ? 'border-l-rose-500 shadow-rose-500/10' :
                                                                                                 appt.status === 'attended' ? 'border-l-blue-500 shadow-blue-500/10 opacity-75' :
                                                                                                     'border-l-primary shadow-primary/10'}
                                                                                     `}
-                                                                                    style={{ top: `${offset}px`, height: '75px' }}
+                                                                                    style={{
+                                                                                        top: `${offset + (rowIndex * 38)}px`,
+                                                                                        height: isDense ? '36px' : '75px',
+                                                                                        left: `${(colIndex * 100) / cols}%`,
+                                                                                        width: `${100 / cols}%`,
+                                                                                        padding: (total > 3 || isDense) ? '0.25rem 0.5rem' : '0.75rem'
+                                                                                    }}
                                                                                     onClick={() => openEditModal(appt)}
                                                                                 >
-                                                                                    <div className="flex justify-between items-start mb-1">
-                                                                                        <span className={`text-[11px] font-black tracking-tighter italic ${appt.status === 'coming' ? 'text-emerald-600' : appt.status === 'denied' ? 'text-rose-600' : 'text-primary'}`}>
-                                                                                            {format(date, 'HH:mm')}
-                                                                                        </span>
-                                                                                        <div className={`w-1.5 h-1.5 rounded-full ${appt.status === 'coming' ? 'bg-emerald-500 animate-pulse' : 'bg-primary/20'}`} />
+                                                                                    <div className={cn("flex flex-col h-full", isDense ? "justify-center" : "justify-between")}>
+                                                                                        <div className="flex justify-between items-center mb-0.5">
+                                                                                            <span className={cn(
+                                                                                                "font-black tracking-tighter italic",
+                                                                                                (total > 3 || isDense) ? "text-[7px]" : "text-[11px]",
+                                                                                                appt.status === 'coming' ? 'text-emerald-600' : appt.status === 'denied' ? 'text-rose-600' : 'text-primary'
+                                                                                            )}>
+                                                                                                {format(date, 'HH:mm')}
+                                                                                            </span>
+                                                                                            <div className={cn("rounded-full", isDense ? "w-1 h-1" : "w-1.5 h-1.5", appt.status === 'coming' ? 'bg-emerald-500 animate-pulse' : 'bg-primary/20')} />
+                                                                                        </div>
+                                                                                        <p className={cn("font-black text-foreground truncate uppercase tracking-tight", (total > 3 || isDense) ? "text-[9px] mb-0" : "text-xs mb-1")}>
+                                                                                            {appt.client_name}
+                                                                                        </p>
+                                                                                        {(total <= 3 && !isDense) && (
+                                                                                            <p className="text-[9px] text-muted-foreground font-bold mt-0.5 truncate flex items-center gap-1">
+                                                                                                <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                                                                                                {appt.notes || 'Sans note'}
+                                                                                            </p>
+                                                                                        )}
                                                                                     </div>
-                                                                                    <p className="text-xs font-black text-foreground truncate uppercase tracking-tight">
-                                                                                        {appt.client_name}
-                                                                                    </p>
-                                                                                    <p className="text-[9px] text-muted-foreground font-bold mt-0.5 truncate flex items-center gap-1">
-                                                                                        <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-                                                                                        {appt.notes || 'Sans note'}
-                                                                                    </p>
                                                                                 </div>
                                                                             );
                                                                         });

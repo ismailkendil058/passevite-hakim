@@ -43,6 +43,9 @@ const DEFAULT_LABOS = ['NewSmile', 'MEDDOUR', 'Youcef', 'new smille'];
 
 export default function LaboPage() {
     const [orders, setOrders] = useState<LaboOrder[]>([]);
+    const [customTypes, setCustomTypes] = useState<string[]>([]);
+    const [customTeintes, setCustomTeintes] = useState<string[]>([]);
+
     const [loading, setLoading] = useState(true);
 
     // Filters
@@ -72,6 +75,12 @@ export default function LaboPage() {
     useEffect(() => {
         fetchOrders();
 
+        // Load custom suggestions
+        const storedTypes = localStorage.getItem('labo_types');
+        if (storedTypes) setCustomTypes(JSON.parse(storedTypes));
+        const storedTeintes = localStorage.getItem('labo_teintes');
+        if (storedTeintes) setCustomTeintes(JSON.parse(storedTeintes));
+
         const channel = supabase
             .channel('labo_orders_changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'labo_orders' }, () => {
@@ -86,6 +95,17 @@ export default function LaboPage() {
             supabase.removeChannel(channel);
         };
     }, [dateFrom, dateTo]);
+
+    const allTypeSuggestions = useMemo(() => {
+        const fromOrders = orders.map(o => o.type_travail).filter(Boolean);
+        return Array.from(new Set([...TYPE_SUGGESTIONS, ...customTypes, ...fromOrders]));
+    }, [orders, customTypes]);
+
+    const allTeinteSuggestions = useMemo(() => {
+        const fromOrders = orders.map(o => o.teinte).filter(Boolean);
+        return Array.from(new Set([...TEINTE_OPTIONS, ...customTeintes, ...fromOrders]));
+    }, [orders, customTeintes]);
+
 
     const fetchOrders = async (showLoading = true) => {
         if (showLoading) setLoading(true);
@@ -171,6 +191,19 @@ export default function LaboPage() {
                 if (error) throw error;
                 toast.success('Nouvelle commande ajoutée');
             }
+
+            // Save new suggestions to localStorage
+            if (payload.type_travail && !allTypeSuggestions.includes(payload.type_travail)) {
+                const newTypes = Array.from(new Set([...customTypes, payload.type_travail]));
+                setCustomTypes(newTypes);
+                localStorage.setItem('labo_types', JSON.stringify(newTypes));
+            }
+            if (payload.teinte && !allTeinteSuggestions.includes(payload.teinte)) {
+                const newTeintes = Array.from(new Set([...customTeintes, payload.teinte]));
+                setCustomTeintes(newTeintes);
+                localStorage.setItem('labo_teintes', JSON.stringify(newTeintes));
+            }
+
 
             setShowAddModal(false);
             resetForm();
@@ -540,23 +573,29 @@ export default function LaboPage() {
 
                         <div className="space-y-1">
                             <label className="text-xs font-medium">Type de prothèse <span className="text-red-500">*</span></label>
-                            <Select value={formData.type_travail} onValueChange={v => setFormData({ ...formData, type_travail: v })}>
-                                <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                                <SelectContent>
-                                    {TYPE_SUGGESTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                            <Input
+                                placeholder="Sélectionner ou écrire..."
+                                value={formData.type_travail}
+                                onChange={e => setFormData({ ...formData, type_travail: e.target.value })}
+                                list="labo-type-suggestions"
+                            />
+                            <datalist id="labo-type-suggestions">
+                                {allTypeSuggestions.map(t => <option key={t} value={t} />)}
+                            </datalist>
                         </div>
                         <div className="space-y-1">
                             <label className="text-xs font-medium">Teinte</label>
-                            <Select value={formData.teinte || 'Non spécifié'} onValueChange={v => setFormData({ ...formData, teinte: v === 'Non spécifié' ? '' : v })}>
-                                <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Non spécifié">Non spécifié</SelectItem>
-                                    {TEINTE_OPTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                            <Input
+                                placeholder="Ex: A1, A2..."
+                                value={formData.teinte || ''}
+                                onChange={e => setFormData({ ...formData, teinte: e.target.value })}
+                                list="labo-teinte-suggestions"
+                            />
+                            <datalist id="labo-teinte-suggestions">
+                                {allTeinteSuggestions.map(t => <option key={t} value={t} />)}
+                            </datalist>
                         </div>
+
                         <div className="space-y-1">
                             <label className="text-xs font-medium">Statut</label>
                             <Select value={formData.status} onValueChange={v => setFormData({ ...formData, status: v as any })}>

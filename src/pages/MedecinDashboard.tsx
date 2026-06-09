@@ -98,6 +98,9 @@ const MedecinDashboard = () => {
     const [dateFrom, setDateFrom] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
     const [dateTo, setDateTo] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
     const [showLaboAddModal, setShowLaboAddModal] = useState(false);
+    const [customLaboTypes, setCustomLaboTypes] = useState<string[]>([]);
+    const [customLaboTeintes, setCustomLaboTeintes] = useState<string[]>([]);
+
     const [showLaboPaymentModal, setShowLaboPaymentModal] = useState(false);
     const [editingLaboId, setEditingLaboId] = useState<string | null>(null);
     const [customLabo, setCustomLabo] = useState(false);
@@ -177,7 +180,23 @@ const MedecinDashboard = () => {
 
     useEffect(() => {
         fetchMeds();
+
+        // Load custom labo suggestions
+        const storedTypes = localStorage.getItem('labo_types');
+        if (storedTypes) setCustomLaboTypes(JSON.parse(storedTypes));
+        const storedTeintes = localStorage.getItem('labo_teintes');
+        if (storedTeintes) setCustomLaboTeintes(JSON.parse(storedTeintes));
     }, []);
+
+    const allTypeSuggestions = useMemo(() => {
+        const fromOrders = orders.map(o => o.type_travail).filter(Boolean);
+        return Array.from(new Set([...TYPE_SUGGESTIONS, ...customLaboTypes, ...fromOrders]));
+    }, [orders, customLaboTypes]);
+
+    const allTeinteSuggestions = useMemo(() => {
+        const fromOrders = orders.map(o => o.teinte).filter(Boolean);
+        return Array.from(new Set([...TEINTE_OPTIONS, ...customLaboTeintes, ...fromOrders]));
+    }, [orders, customLaboTeintes]);
 
     const handleSaveNewMed = async () => {
         if (!newMedFormData.name) {
@@ -747,6 +766,18 @@ const MedecinDashboard = () => {
                 toast.success('Nouvelle commande ajoutée');
             }
 
+            // Save new suggestions to localStorage
+            if (payload.type_travail && !allTypeSuggestions.includes(payload.type_travail)) {
+                const newTypes = Array.from(new Set([...customLaboTypes, payload.type_travail]));
+                setCustomLaboTypes(newTypes);
+                localStorage.setItem('labo_types', JSON.stringify(newTypes));
+            }
+            if (payload.teinte && !allTeinteSuggestions.includes(payload.teinte)) {
+                const newTeintes = Array.from(new Set([...customLaboTeintes, payload.teinte]));
+                setCustomLaboTeintes(newTeintes);
+                localStorage.setItem('labo_teintes', JSON.stringify(newTeintes));
+            }
+
             setShowLaboAddModal(false);
             resetLaboForm();
         } catch (error: any) {
@@ -1078,42 +1109,67 @@ const MedecinDashboard = () => {
                                             <div className="grid grid-cols-[60px_1fr] gap-6">
                                                 {/* Time labels */}
                                                 <div className="space-y-[80px] pt-10 text-[10px] font-black text-slate-300 text-right pr-4 border-r border-slate-100">
-                                                    {['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'].map(t => (
+                                                    {['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'].map(t => (
                                                         <div key={t} className="h-0 flex items-center justify-end">{t}</div>
                                                     ))}
                                                 </div>
 
                                                 {/* Single Column for current Doctor */}
-                                                <div className="relative bg-slate-50/30 rounded-3xl min-h-[1300px] border border-dashed border-slate-200">
+                                                <div className="relative bg-slate-50/30 rounded-3xl min-h-[1450px] border border-dashed border-slate-200">
                                                     <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md p-4 border-b text-center font-black text-xs text-primary uppercase tracking-[0.2em] rounded-t-3xl">
                                                         Planning {doctorInfo?.name}
                                                     </div>
 
                                                     {/* Appointments for this doctor on selected current day */}
-                                                    {parsedAppointments
-                                                        .filter(a => a.status !== 'denied' && a.doctor_id === doctorInfo?.id && a.startOfDayTime === startOfDay(calendarDate || new Date()).getTime())
-                                                        .map(appt => {
+                                                    {(() => {
+                                                        const dayStart = startOfDay(calendarDate || new Date()).getTime();
+                                                        const filteredAppts = parsedAppointments.filter(a =>
+                                                            a.status !== 'denied' &&
+                                                            a.doctor_id === doctorInfo?.id &&
+                                                            a.startOfDayTime === dayStart
+                                                        );
+
+                                                        // Group by hour
+                                                        const hourGroups: Record<number, any[]> = {};
+                                                        filteredAppts.forEach(a => {
+                                                            const h = parseISO(a.appointment_at).getHours();
+                                                            if (!hourGroups[h]) hourGroups[h] = [];
+                                                            hourGroups[h].push(a);
+                                                        });
+
+                                                        return filteredAppts.map(appt => {
                                                             const date = parseISO(appt.appointment_at);
                                                             const hours = date.getHours();
                                                             const minutes = date.getMinutes();
-                                                            const offset = (hours - 8) * 80 + (minutes / 60) * 80 + 64; // Adjusted offset for header
+                                                            const offset = (hours - 6) * 80 + (minutes / 60) * 80 + 64; // Adjusted offset for header
+
+                                                            const group = hourGroups[hours] || [];
+                                                            const index = group.findIndex(a => a.id === appt.id);
+                                                            const total = group.length;
 
                                                             return (
                                                                 <Card
                                                                     key={appt.id}
                                                                     className={cn(
-                                                                        "absolute left-4 right-4 shadow-xl border-l-4 p-4 rounded-2xl cursor-pointer hover:scale-[1.02] transition-all z-20 group",
+                                                                        "absolute shadow-xl border-l-4 rounded-2xl cursor-pointer hover:scale-[1.02] transition-all z-20 group",
                                                                         appt.status === 'completed' ? 'border-l-emerald-500 bg-white' : 'border-l-primary bg-white'
                                                                     )}
-                                                                    style={{ top: `${offset}px`, height: '80px' }}
+                                                                    style={{
+                                                                        top: `${offset}px`,
+                                                                        height: '80px',
+                                                                        left: `${(index * 100) / total}%`,
+                                                                        width: `${100 / total}%`,
+                                                                        padding: total > 2 ? '0.5rem' : '1rem'
+                                                                    }}
                                                                     onClick={() => { setSelectedPatient(patients.find(p => p.phone === appt.client_phone)); setIsPatientDialogOpen(true); }}
                                                                 >
                                                                     <div className="flex justify-between items-start">
                                                                         <div>
-                                                                            <p className="text-[10px] font-black text-primary mb-1 uppercase tracking-widest">{format(date, 'HH:mm')}</p>
-                                                                            <p className="text-sm font-black text-slate-800 leading-tight">{appt.client_name}</p>
+                                                                            <p className={cn("font-black text-primary mb-1 uppercase tracking-widest", total > 3 ? "text-[8px]" : "text-[10px]")}>{format(date, 'HH:mm')}</p>
+                                                                            <p className={cn("font-black text-slate-800 leading-tight truncate", total > 3 ? "text-[10px]" : "text-sm")}>{appt.client_name}</p>
                                                                         </div>
-                                                                        <Badge className={cn("text-[8px] font-black rounded-full h-5",
+                                                                        <Badge className={cn("font-black rounded-full h-5",
+                                                                            total > 3 ? "text-[6px] px-1" : "text-[8px]",
                                                                             appt.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-primary/5 text-primary'
                                                                         )}>
                                                                             {appt.status.toUpperCase()}
@@ -1122,7 +1178,7 @@ const MedecinDashboard = () => {
                                                                 </Card>
                                                             );
                                                         })
-                                                    }
+                                                    })()}
                                                 </div>
                                             </div>
                                         </ScrollArea>
@@ -1845,23 +1901,31 @@ const MedecinDashboard = () => {
 
                         <div className="space-y-1">
                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Type de prothèse <span className="text-rose-500">*</span></label>
-                            <Select value={laboFormData.type_travail} onValueChange={v => setLaboFormData({ ...laboFormData, type_travail: v })}>
-                                <SelectTrigger className="rounded-xl border-slate-200"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                                <SelectContent className="rounded-xl border-none shadow-xl">
-                                    {TYPE_SUGGESTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                            <Input
+                                placeholder="Sélectionner ou écrire..."
+                                value={laboFormData.type_travail}
+                                onChange={e => setLaboFormData({ ...laboFormData, type_travail: e.target.value })}
+                                className="rounded-xl border-slate-200"
+                                list="labo-type-suggestions-dashboard"
+                            />
+                            <datalist id="labo-type-suggestions-dashboard">
+                                {allTypeSuggestions.map(t => <option key={t} value={t} />)}
+                            </datalist>
                         </div>
                         <div className="space-y-1">
                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Teinte</label>
-                            <Select value={laboFormData.teinte || 'Non spécifié'} onValueChange={v => setLaboFormData({ ...laboFormData, teinte: v === 'Non spécifié' ? '' : v })}>
-                                <SelectTrigger className="rounded-xl border-slate-200"><SelectValue placeholder="-" /></SelectTrigger>
-                                <SelectContent className="rounded-xl border-none shadow-xl">
-                                    <SelectItem value="Non spécifié">Non spécifié</SelectItem>
-                                    {TEINTE_OPTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                            <Input
+                                placeholder="Ex: A1, A2..."
+                                value={laboFormData.teinte || ''}
+                                onChange={e => setLaboFormData({ ...laboFormData, teinte: e.target.value })}
+                                className="rounded-xl border-slate-200"
+                                list="labo-teinte-suggestions-dashboard"
+                            />
+                            <datalist id="labo-teinte-suggestions-dashboard">
+                                {allTeinteSuggestions.map(t => <option key={t} value={t} />)}
+                            </datalist>
                         </div>
+
 
                         <div className="space-y-1">
                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Statut</label>
