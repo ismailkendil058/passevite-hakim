@@ -38,7 +38,7 @@ const TYPE_SUGGESTIONS = ['B ceramique', 'Zirconne', 'Résine', 'Bridge', '4 él
 const TEINTE_OPTIONS = ['A1', 'A2', 'A3', 'A3.5', 'A4', 'B1', 'B2', 'B3', 'B4', 'C1', 'D2'];
 const STATUS_OPTIONS = ['En cours', 'Au labo', 'Livré', 'Problème'];
 
-const displayStatus = (s: string) => s === 'Problème' ? 'daulirence' : s;
+const displayStatus = (s: string) => s === 'Problème' ? 'Doléance' : s;
 const DEFAULT_LABOS = ['NewSmile', 'MEDDOUR', 'Youcef', 'new smille'];
 
 export default function LaboPage() {
@@ -324,7 +324,7 @@ export default function LaboPage() {
             case 'Au labo':
                 return <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-200">Au labo</Badge>;
             case 'Problème':
-                return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200">daulirence</Badge>;
+                return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200">Doléance</Badge>;
             default:
                 return <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200">En cours</Badge>;
         }
@@ -383,7 +383,7 @@ export default function LaboPage() {
                             <TabsTrigger value="Tous">Tous</TabsTrigger>
                             <TabsTrigger value="Au labo">Au labo</TabsTrigger>
                             <TabsTrigger value="Livré">Livré</TabsTrigger>
-                            <TabsTrigger value="Problème">daulirence</TabsTrigger>
+                            <TabsTrigger value="Problème">Doléance</TabsTrigger>
                         </TabsList>
                     </Tabs>
 

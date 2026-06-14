@@ -160,7 +160,7 @@ const MedecinDashboard = () => {
         variants: med.variants || []
     });
 
-    const displayStatus = (s: string) => s === 'Problème' ? 'daulirence' : s;
+    const displayStatus = (s: string) => s === 'Problème' ? 'Doléance' : s;
 
     const fetchMeds = async () => {
         try {
@@ -440,6 +440,23 @@ const MedecinDashboard = () => {
     overflow: hidden;
   }
 
+  .watermark {
+    position: absolute;
+    top: 62%;
+    left: 50%;
+    width: 115mm;
+    height: auto;
+    opacity: 0.06;
+    transform: translate(-50%, -50%);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .page > :not(.watermark) {
+    position: relative;
+    z-index: 1;
+  }
+
   .clinic-brand {
     text-align: center;
     font-family: 'Playfair Display', serif;
@@ -600,6 +617,7 @@ const MedecinDashboard = () => {
 </head>
 <body>
 <div class="page">
+  <img class="watermark" src="/Dr hakim.png" alt="" />
 
   <div class="clinic-brand">CD Dental Clinic</div>
 
@@ -889,7 +907,7 @@ const MedecinDashboard = () => {
             case 'Au labo':
                 return <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-200">Au labo</Badge>;
             case 'Problème':
-                return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200">daulirence</Badge>;
+                return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200">Doléance</Badge>;
             default:
                 return <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200">En cours</Badge>;
         }
@@ -1308,7 +1326,7 @@ const MedecinDashboard = () => {
                                         <TabsTrigger value="Tous">Tous</TabsTrigger>
                                         <TabsTrigger value="Au labo">Au labo</TabsTrigger>
                                         <TabsTrigger value="Livré">Livré</TabsTrigger>
-                                        <TabsTrigger value="Problème">daulirence</TabsTrigger>
+                                        <TabsTrigger value="Problème">Doléance</TabsTrigger>
                                     </TabsList>
                                 </Tabs>
 

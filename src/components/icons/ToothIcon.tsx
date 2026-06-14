@@ -11,21 +11,7 @@ export const ToothIcon = ({ className = "h-6 w-6", ...props }: React.SVGProps<SV
         className={className}
         {...props}
     >
-        {/* Dental Implant Icon Inspired by User Provided Image */}
-        {/* Tooth Crown (Top Part) */}
-        <path d="M7 4C4.8 4 3 5.8 3 8C3 10.2 4.8 12 7 12H17C19.2 12 21 10.2 21 8C21 5.8 19.2 4 17 4C16 4 15 4.5 14 5C13 4.5 12 4 11 4C10 4 9 4.5 8 5C7 4.5 6 4 5 4Z" opacity="0" />
-        {/* Redrawing the crown to match the lobed bean shape better */}
-        <path d="M5 8c0-2.2 1.8-4 4-4 1.1 0 2.1.5 2.8 1.2.1.1.3.1.4 0C13 4.5 14 4 15.1 4c2.2 0 4 1.8 4 4 0 2.2-1.8 4-4 4H9c-2.2 0-4-1.8-4-4z" />
-
-        {/* Implant Post Connector (Neck) */}
-        <path d="M9 12v1.5c0 .3.2.5.5.5h5c.3 0 .5-.2.5-.5V12" />
-
-        {/* Screw Shank */}
-        <path d="M11 14v7l1 2 1-2v-7" />
-
-        {/* Screw Threads (Diagonal lines) */}
-        <path d="M10 16l4 1.5" />
-        <path d="M10 18l4 1.5" />
-        <path d="M10 20l2 0.75" />
+        <path d="M7.5 3.5c1.3 0 2.3.7 3.2 1.2.8.5 1.8.5 2.6 0 .9-.5 1.9-1.2 3.2-1.2 2.8 0 4.5 2.4 4.5 5.3 0 2-.8 3.5-1.7 5.1-.8 1.5-1.3 3.1-1.7 4.8-.3 1.5-.9 2.8-2.1 2.8-1.3 0-1.7-1.4-2.1-3-.3-1.4-.7-2.7-1.4-2.7s-1.1 1.3-1.4 2.7c-.4 1.6-.8 3-2.1 3-1.2 0-1.8-1.3-2.1-2.8-.4-1.7-.9-3.3-1.7-4.8C3.8 12.3 3 10.8 3 8.8c0-2.9 1.7-5.3 4.5-5.3z" />
+        <path d="M9 8.2c1.8.9 4.2.9 6 0" />
     </svg>
 );
