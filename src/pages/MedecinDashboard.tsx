@@ -477,48 +477,40 @@ const MedecinDashboard = () => {
     padding-bottom: 3mm;
   }
 
-  .header {
-    display: flex;
-    align-items: flex-start;
-    gap: 15px;
+  .header-left {
+    flex: 1;
+    padding-top: 1mm;
   }
-
-  .logo-wrap {
-    flex-shrink: 0;
-    width: 50px;
-    height: 55px;
-  }
-
-  .logo-wrap svg { width: 100%; height: 100%; }
 
   .clinic-name {
-    font-size: 14pt;
-    font-weight: 700;
+    font-size: 17pt;
+    font-weight: 800;
     color: #2a8bbf;
     margin-bottom: 1mm;
+    line-height: 1.1;
   }
 
   .doctor-title {
-    font-size: 11pt;
-    font-weight: 700;
+    font-size: 12pt;
+    font-weight: 800;
     color: #2a8bbf;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    margin-bottom: 2mm;
+    margin-bottom: 2.5mm;
   }
 
   .clinic-address {
-    font-size: 9pt;
-    font-weight: 300;
-    color: #5ab0d8;
-    line-height: 1.4;
+    font-size: 11pt;
+    font-weight: 700;
+    color: #2a8bbf;
+    line-height: 1.35;
   }
 
   .clinic-phone {
-    font-size: 9pt;
+    font-size: 11pt;
     color: #2a8bbf;
-    font-weight: 400;
-    margin-top: 1mm;
+    font-weight: 700;
+    margin-top: 1.5mm;
   }
 
   .patient-fields {
@@ -588,7 +580,13 @@ const MedecinDashboard = () => {
     padding-top: 5mm;
     margin-top: 5mm;
     display: flex;
-    justify-content: flex-end;
+    justify-content: center;
+    width: 100%;
+    color: #2a8bbf;
+    font-size: 11pt;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-align: center;
   }
 
   .sig-block {
@@ -623,16 +621,12 @@ const MedecinDashboard = () => {
 
   <div class="top-row">
     <div class="header-left">
-      <div class="logo-wrap">
-        <img src="/Dr hakim.png" alt="${doctorInfo?.name || 'Dr. Hakim'}" style="width: 100%; height: 100%; object-fit: contain;" />
-      </div>
       <div class="clinic-info">
-        <div class="clinic-name">${doctorInfo?.name || 'Dr. Hakim'}</div>
+        <div class="clinic-name">${doctorInfo?.name || 'Dr Chabane Abd El Hakim'}</div>
         <div class="doctor-title">Chirurgien Dentiste</div>
         <div class="clinic-address">
           Zone Aissat Mustapha<br>
-          Cité 90 lgts " ENCG " Bt 8<br>
-          N° 01 Réghaia Alger
+          Cité 90 lgts " ENCG " Bt 8 N° 01 - Réghaia Alger
         </div>
         <div class="clinic-phone">0796 66 73 49 / 020 25 49 12</div>
       </div>
@@ -662,6 +656,7 @@ const MedecinDashboard = () => {
   </div>
 
   <div class="footer">
+    Prévenir vaut mieux que guérir. Gardez le sourire
   </div>
 
 </div>
