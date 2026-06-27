@@ -2,8 +2,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://gfvbyyjmnuugrdonwpje.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmdmJ5eWptbnV1Z3Jkb253cGplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0OTE0OTIsImV4cCI6MjA5NTA2NzQ5Mn0.lv_rCVBfASWi7BoP5dktP8AI3sVNd6yZxOIooNUa8Ko";
+const SUPABASE_URL = "https://vhsilqwzfjnxfqjbtfqk.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoc2lscXd6ZmpueGZxamJ0ZnFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MDcyMjMsImV4cCI6MjA5ODA4MzIyM30.htaE3B5y9ZnqSx6NzcOjI87tRKZumcExB_Sllzce1YY";
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
@@ -35,7 +35,7 @@ const safeStorage = {
 
 // Supabase client instance
 if (typeof window !== 'undefined') {
-  const currentProjectRef = 'gfvbyyjmnuugrdonwpje';
+  const currentProjectRef = 'vhsilqwzfjnxfqjbtfqk';
   Object.keys(localStorage).forEach(key => {
     if (key.startsWith('sb-') && !key.includes(currentProjectRef)) {
       localStorage.removeItem(key);

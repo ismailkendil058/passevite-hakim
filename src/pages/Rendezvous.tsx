@@ -172,7 +172,11 @@ const Rendezvous = () => {
 
         q = q.order('completed_at', { ascending: false }).limit(200);
 
-        const { data } = await q;
+        const { data, error } = await q;
+        if (error) {
+            console.error('[fetchClients] Error:', error);
+            toast.error(`Erreur patients: ${error.message}`);
+        }
         if (data) setClients(data as any);
     }, [searchQuery]);
 

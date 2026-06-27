@@ -177,7 +177,7 @@ export function useQueue() {
     const doctor = doctors.find(d => d.id === doctorId);
     if (!doctor) return { error: new Error('Equipe introuvable') };
 
-    // Fetch active session (required NOT NULL FK in queue_entries)
+    // Fetch active session (optional — queue works without one)
     const { data: sessionData } = await supabase
       .from('sessions')
       .select('id')
@@ -185,11 +185,7 @@ export function useQueue() {
       .limit(1)
       .maybeSingle();
 
-    if (!sessionData?.id) {
-      return { error: new Error('Aucune session active. Veuillez ouvrir une session avant d\'ajouter un patient.') };
-    }
-
-    const activeSessionId = sessionData.id;
+    const activeSessionId = sessionData?.id ?? null;
     const todayStart = startOfDay(new Date()).toISOString();
 
     // Get next number for today
