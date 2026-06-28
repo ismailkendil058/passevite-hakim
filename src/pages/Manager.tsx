@@ -23,9 +23,9 @@ interface CompletedClient {
   total_amount: number;
   tranche_paid: number;
   completed_at: string;
-  receptionist_id: string;
+  receptionist_id?: string;
   doctor: { name: string; initial: string } | null;
-  receptionist_email?: string;
+  receptionist_name?: string;
 }
 
 const Manager = () => {
@@ -55,18 +55,18 @@ const Manager = () => {
       .order('completed_at', { ascending: false });
 
     if (data) {
-      const uniqueIds = [...new Set(data.map(d => d.receptionist_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, email')
+      const uniqueIds = [...new Set(data.map(d => d.receptionist_id).filter(Boolean))];
+      const { data: roles } = await supabase
+        .from('roles')
+        .select('id, username')
         .in('id', uniqueIds);
 
-      const emailMap = new Map(profiles?.map(p => [p.id, p.email]) || []);
+      const roleMap = new Map(roles?.map(r => [r.id, r.username]) || []);
 
       setClients(data.map(c => ({
         ...c,
         doctor: c.doctor as any,
-        receptionist_email: emailMap.get(c.receptionist_id) || '—',
+        receptionist_name: c.receptionist_id ? (roleMap.get(c.receptionist_id) || '—') : '—',
       })));
     }
 
@@ -137,7 +137,7 @@ const Manager = () => {
       c.treatment,
       c.total_amount,
       c.tranche_paid,
-      c.receptionist_email || '',
+      c.receptionist_name || '',
       format(new Date(c.completed_at), 'dd/MM/yyyy HH:mm'),
     ]);
 
@@ -379,7 +379,7 @@ const Manager = () => {
                       <TableCell>{c.treatment}</TableCell>
                       <TableCell className="text-right">{c.total_amount?.toLocaleString()} DZD</TableCell>
                       <TableCell className="text-right">{c.tranche_paid?.toLocaleString()} DZD</TableCell>
-                      <TableCell className="text-xs">{c.receptionist_email}</TableCell>
+                      <TableCell className="text-xs">{c.receptionist_name || '—'}</TableCell>
                       <TableCell className="text-xs">
                         {format(new Date(c.completed_at), 'dd/MM/yyyy HH:mm', { locale: fr })}
                       </TableCell>

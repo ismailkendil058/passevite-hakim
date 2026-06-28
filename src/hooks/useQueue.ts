@@ -270,7 +270,7 @@ export function useQueue() {
 
     const todayStart = startOfDay(new Date()).toISOString();
 
-    // Check if already completed today
+    // Check if already completed today with the same client_id and phone
     const { data: existing } = await supabase
       .from('completed_clients')
       .select('id')
@@ -285,6 +285,16 @@ export function useQueue() {
       return { error: null, alreadyCompleted: true };
     }
 
+    // Get active session if available
+    const { data: sessionData } = await supabase
+      .from('sessions')
+      .select('id')
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+
+    const activeSessionId = sessionData?.id ?? null;
+
     const insertData: any = {
       client_name: clientName.trim(),
       phone: entry.phone,
@@ -294,20 +304,49 @@ export function useQueue() {
       treatment,
       total_amount: totalAmount,
       tranche_paid: tranchePaid,
-      receptionist_id: receptionistId,
+      session_id: activeSessionId,
       notes: notes?.trim() || null,
     };
+
+    if (receptionistId) {
+      insertData.receptionist_id = receptionistId;
+    }
 
     let { error: insertError } = await supabase.from('completed_clients').insert(insertData);
 
     if (insertError && insertError.code === '23503' && insertError.message?.includes('receptionist_id')) {
-      insertData.receptionist_id = 'a44e7e83-189f-4f82-96d8-b0eeea4ab104';
-      const retry = await supabase.from('completed_clients').insert(insertData);
+      // The old FK constraint to auth.users may still be active if the migration
+      // hasn't been applied. Retry without receptionist_id so the insert can proceed.
+      const { receptionist_id: _, ...rest } = insertData;
+      const retry = await supabase.from('completed_clients').insert(rest);
       insertError = retry.error;
     }
 
     if (insertError) {
-      if (insertError.code === '23505' || isQueueEntryCompletionConflict(insertError)) {
+      // Log the full error for debugging - check console to see the actual error structure
+      console.error('Insert error details:', {
+        code: insertError.code,
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+        statusCode: insertError.statusCode,
+        name: insertError.name
+      });
+
+      const errorText = `${insertError.code ?? ''} ${insertError.message ?? ''} ${insertError.details ?? ''} ${insertError.hint ?? ''}`.toLowerCase();
+      
+      // Check multiple indicators of a duplicate/conflict error
+      const isDuplicateError = insertError.code === '23505' 
+        || insertError.status === 409
+        || insertError.statusCode === 409
+        || errorText.includes('duplicate')
+        || errorText.includes('unique')
+        || errorText.includes('conflict')
+        || errorText.includes('409')
+        || isQueueEntryCompletionConflict(insertError);
+
+      if (isDuplicateError) {
+        console.log('Duplicate detected, treating as already completed');
         await supabase.from('queue_entries').delete().eq('id', entryId);
         removeEntryFromState(entryId);
         return { error: null, alreadyCompleted: true };

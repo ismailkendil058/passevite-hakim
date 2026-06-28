@@ -202,10 +202,13 @@ const Rendezvous = () => {
                     notes: visit.notes || null,
                     completed_at: visit.completed_at || new Date().toISOString(),
                     state: visit.state || 'N',
-                    receptionist_id: user?.id,
                     session_id: activeSessionId,
                     client_id: visit.client_id || `ADM-${Date.now()}`
                 };
+
+                if (user?.id) {
+                    treatmentData.receptionist_id = user.id;
+                }
 
                 let error;
                 if (visit.id) {
@@ -275,10 +278,13 @@ const Rendezvous = () => {
                 notes: quickPaymentNote || 'Versement sans visite',
                 completed_at: new Date().toISOString(),
                 state: latestEntry.state,
-                receptionist_id: user?.id,
                 session_id: activeSessionId,
                 client_id: latestEntry.client_id
             };
+
+            if (user?.id) {
+                paymentData.receptionist_id = user.id;
+            }
 
             const { error } = await supabase.from('completed_clients').insert(paymentData);
             if (error) throw error;

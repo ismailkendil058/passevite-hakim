@@ -23,7 +23,7 @@ export type Database = {
           id: string
           phone: string
           queue_entry_id: string | null
-          receptionist_id: string
+          receptionist_id?: string
           session_id: string
           state: string
           total_amount: number
@@ -38,7 +38,7 @@ export type Database = {
           id?: string
           phone: string
           queue_entry_id?: string | null
-          receptionist_id: string
+          receptionist_id?: string
           session_id: string
           state: string
           total_amount?: number
