@@ -447,6 +447,14 @@ const Rendezvous = () => {
                     fetchInitialData(false);
                 }
             )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'completed_clients' },
+                () => {
+                    fetchInitialData(false);
+                    fetchClients();
+                }
+            )
             .subscribe();
 
         const intervalId = setInterval(() => {
