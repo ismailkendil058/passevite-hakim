@@ -137,13 +137,14 @@ const Rendezvous = () => {
             // Fetch Appointments
             const { data: apptsData } = await supabase
                 .from('appointments')
-                .select('*, doctor:doctors(*)')
-                .order('appointment_at', { ascending: true });
+                .select('id, client_phone, client_name, appointment_at, doctor_id, client_id, status, state, notes, created_at, doctor:doctors(id, name, initial)')
+                .order('appointment_at', { ascending: true })
+                .limit(200);
 
             // Fetch Doctors
             const { data: docsData } = await supabase
                 .from('doctors')
-                .select('*');
+                .select('id, name, initial');
 
             if (apptsData) setAppointments(apptsData as any);
             if (docsData) {
@@ -164,7 +165,7 @@ const Rendezvous = () => {
     const fetchClients = useCallback(async () => {
         let q = supabase
             .from('completed_clients')
-            .select('*');
+            .select('id, client_name, phone, client_id, treatment, total_amount, tranche_paid, state, doctor_id, completed_at');
 
         if (searchQuery.trim()) {
             q = q.or(`client_name.ilike.%${searchQuery.trim()}%,phone.ilike.%${searchQuery.trim()}%`);
@@ -457,13 +458,7 @@ const Rendezvous = () => {
             )
             .subscribe();
 
-        const intervalId = setInterval(() => {
-            fetchInitialData(false);
-            fetchClients();
-        }, 500);
-
         return () => {
-            clearInterval(intervalId);
             supabase.removeChannel(channel);
         };
     }, [fetchInitialData, fetchClients]);
@@ -502,9 +497,21 @@ const Rendezvous = () => {
             .sort((a, b) => a.client_name.localeCompare(b.client_name));
     }, [clients]);
 
+    // Filter appointments in memory by search query
+    const filteredAppointments = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+        if (!query) return appointments;
+        return appointments.filter(a =>
+            (a.client_name || '').toLowerCase().includes(query) ||
+            (a.client_phone || '').toLowerCase().includes(query)
+        );
+    }, [appointments, searchQuery]);
+
     // Group by patient (phone + name) to build dossier entries with multiple treatments
     const groupedPatients = useMemo(() => {
-        const map = new Map<string, { name: string; phone: string; treatments: Array<{ treatment: string; latest: CompletedClient; totalPaid: number }> }>();
+        const map = new Map<string, { name: string; phone: string; treatments: Array<{ treatment: string; latest: CompletedClient; totalPaid: number }>; latestVisitDate?: string; latestApptDate?: string }>();
+        
+        // 1. Group completed clients
         uniqueClients.forEach(c => {
             const key = `${c.phone}_${c.client_name.toLowerCase().trim()}`;
             const existing = map.get(key);
@@ -512,14 +519,37 @@ const Rendezvous = () => {
                 map.set(key, {
                     name: c.client_name,
                     phone: c.phone,
-                    treatments: [{ treatment: c.treatment || '—', latest: c, totalPaid: (c as any).totalPaid || 0 }]
+                    treatments: [{ treatment: c.treatment || '—', latest: c, totalPaid: (c as any).totalPaid || 0 }],
+                    latestVisitDate: c.completed_at
                 });
             } else {
                 existing.treatments.push({ treatment: c.treatment || '—', latest: c, totalPaid: (c as any).totalPaid || 0 });
+                if (!existing.latestVisitDate || new Date(c.completed_at) > new Date(existing.latestVisitDate)) {
+                    existing.latestVisitDate = c.completed_at;
+                }
             }
         });
+
+        // 2. Merge appointments
+        filteredAppointments.forEach(a => {
+            const key = `${a.client_phone}_${a.client_name.toLowerCase().trim()}`;
+            const existing = map.get(key);
+            if (!existing) {
+                map.set(key, {
+                    name: a.client_name,
+                    phone: a.client_phone,
+                    treatments: [],
+                    latestApptDate: a.appointment_at
+                });
+            } else {
+                if (!existing.latestApptDate || new Date(a.appointment_at) > new Date(existing.latestApptDate)) {
+                    existing.latestApptDate = a.appointment_at;
+                }
+            }
+        });
+
         return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-    }, [uniqueClients]);
+    }, [uniqueClients, filteredAppointments]);
 
     const filteredGroupedPatients = useMemo(() => {
         if (paymentFilter === 'all') return groupedPatients;
@@ -977,18 +1007,36 @@ L'équipe de CD Dental Clinic.`;
                                         <Card key={`${patient.phone}_${patient.name}`} onClick={() => { setViewingPatient({ phone: patient.phone, name: patient.name }); setSelectedTreatment(null); }} className="cursor-pointer hover:border-primary/30 hover:bg-primary/[0.02] transition-all group">
                                             <CardContent className="p-4 flex items-center justify-between">
                                                 <div className="space-y-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <p className="font-bold text-foreground group-hover:text-primary transition-colors">{patient.name}</p>
-                                                        {patient.treatments.some(t => t.totalPaid < t.latest.total_amount) && (
-                                                            <Badge variant="outline" className="bg-rose-50 text-rose-600 border-rose-100 text-[9px] h-4 px-1.5 font-bold uppercase">Dette</Badge>
+                                                    <p className="font-bold text-foreground group-hover:text-primary transition-colors">{patient.name}</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {patient.phone}
+                                                        {patient.treatments.length > 0 && (
+                                                            <>
+                                                                {' · '}
+                                                                <span className="text-primary/70">{patient.treatments.map(t => t.treatment).slice(0, 2).join(', ')}</span>
+                                                            </>
                                                         )}
-                                                    </div>
-                                                    <p className="text-xs text-muted-foreground">{patient.phone} · <span className="text-primary/70">{patient.treatments.map(t => t.treatment).slice(0, 2).join(', ')}</span></p>
+                                                        {patient.treatments.length === 0 && (
+                                                            <>
+                                                                {' · '}
+                                                                <span className="text-muted-foreground/60 italic">Rendez-vous uniquement</span>
+                                                            </>
+                                                        )}
+                                                    </p>
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     <div className="text-right hidden sm:block">
-                                                        <p className="text-[10px] text-muted-foreground uppercase font-medium">Dernière visite</p>
-                                                        <p className="text-xs font-semibold">{format(parseISO(patient.treatments[0]?.latest.completed_at || new Date().toISOString()), 'dd/MM/yyyy')}</p>
+                                                        <p className="text-[10px] text-muted-foreground uppercase font-medium">
+                                                            {patient.latestVisitDate ? 'Dernière visite' : 'Dernier RDV'}
+                                                        </p>
+                                                        <p className="text-xs font-semibold">
+                                                            {patient.latestVisitDate 
+                                                                ? format(parseISO(patient.latestVisitDate), 'dd/MM/yyyy') 
+                                                                : (patient.latestApptDate 
+                                                                    ? format(parseISO(patient.latestApptDate), 'dd/MM/yyyy') 
+                                                                    : '—')
+                                                                }
+                                                        </p>
                                                     </div>
                                                     <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
                                                 </div>

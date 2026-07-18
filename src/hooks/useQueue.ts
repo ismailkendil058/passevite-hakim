@@ -148,14 +148,8 @@ export function useQueue() {
       )
       .subscribe();
 
-    const intervalId = setInterval(() => {
-      fetchEntries();
-      fetchInCabinetEntries();
-    }, 500);
-
     return () => {
       clearTimeout(timeoutId);
-      clearInterval(intervalId);
       supabase.removeChannel(channel);
     };
   }, [fetchEntries, fetchInCabinetEntries]);

@@ -175,10 +175,11 @@ const Accueil = () => {
       nextStart.setDate(nextStart.getDate() + 1);
       const { data } = await supabase
         .from('completed_clients')
-        .select('*, doctor:doctors(name)')
+        .select('id, client_name, phone, client_id, treatment, total_amount, tranche_paid, state, doctor_id, completed_at, doctor:doctors(name)')
         .gte('completed_at', start.toISOString())
         .lt('completed_at', nextStart.toISOString())
-        .order('completed_at', { ascending: false });
+        .order('completed_at', { ascending: false })
+        .limit(200);
       setTodayClients(data || []);
     } catch (err) {
       console.error('Error fetching today clients', err);
@@ -392,9 +393,10 @@ const Accueil = () => {
       if (entry.state === 'R') {
         const { data: history } = await (await import('@/integrations/supabase/client')).supabase
           .from('completed_clients')
-          .select('*')
+          .select('id, client_name, phone, client_id, treatment, total_amount, tranche_paid, completed_at, state')
           .eq('phone', entry.phone)
-          .order('completed_at', { ascending: false });
+          .order('completed_at', { ascending: false })
+          .limit(200);
 
         if (history && history.length > 0) {
           // Aggregate history per treatment: sum paid tranches and keep latest total_amount for that treatment

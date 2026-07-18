@@ -166,7 +166,7 @@ const MedecinDashboard = () => {
         try {
             const { data, error } = await supabase
                 .from('medications')
-                .select('*')
+                .select('id, name, dosage, default_dosage, default_duration, default_frequency_count, default_frequency_unit, default_timing, variants')
                 .order('name');
             if (error) throw error;
             if (data) {
@@ -275,8 +275,8 @@ const MedecinDashboard = () => {
         enabled: !!selectedPatient,
         queryFn: async () => {
             const [appts, ords] = await Promise.all([
-                supabase.from('appointments').select('*, doctor:doctors(*)').eq('client_phone', selectedPatient.phone).order('appointment_at', { ascending: false }),
-                supabase.from('prescriptions').select('*').eq('patient_name', selectedPatient.client_name).order('created_at', { ascending: false })
+                supabase.from('appointments').select('id, client_phone, client_name, appointment_at, doctor_id, status, state, notes, created_at, doctor:doctors(id, name, initial)').eq('client_phone', selectedPatient.phone).order('appointment_at', { ascending: false }).limit(200),
+                supabase.from('prescriptions').select('id, doctor_id, patient_name, prescription_date, medications, notes, created_at').eq('patient_name', selectedPatient.client_name).order('created_at', { ascending: false }).limit(200)
             ]);
             return { appointments: appts.data || [], ordonnances: ords.data || [] };
         }
@@ -288,23 +288,26 @@ const MedecinDashboard = () => {
         try {
             const { data: rxData } = await supabase
                 .from('prescriptions')
-                .select('*')
+                .select('id, doctor_id, patient_name, prescription_date, medications, notes, created_at')
                 .eq('doctor_id', doctorInfo.id)
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: false })
+                .limit(200);
             if (rxData) setPrescriptions(rxData);
 
             const { data: aptData } = await supabase
                 .from('appointments')
-                .select('*')
+                .select('id, doctor_id, client_phone, client_name, appointment_at, status, state, notes, created_at')
                 .eq('doctor_id', doctorInfo.id)
-                .order('appointment_at', { ascending: false });
+                .order('appointment_at', { ascending: false })
+                .limit(200);
             if (aptData) setAppointments(aptData);
 
             const { data: clientData } = await supabase
                 .from('completed_clients')
-                .select('*')
+                .select('id, client_name, phone, client_id, treatment, total_amount, tranche_paid, state, doctor_id, completed_at')
                 .eq('doctor_id', doctorInfo.id)
-                .order('completed_at', { ascending: false });
+                .order('completed_at', { ascending: false })
+                .limit(200);
             if (clientData) setPatients(clientData);
 
         } catch (error) {
@@ -688,13 +691,13 @@ const MedecinDashboard = () => {
         // @ts-ignore
         let query = supabase
             .from('labo_orders')
-            .select('*')
+            .select('id, doctor_id, client_name, type_travail, teinte, laboratoire, n_fiche, date_reception, status, devis, versement')
             .eq('doctor_id', doctorInfo.id)
             .gte('date_reception', dateFrom)
             .lte('date_reception', dateTo)
             .order('date_reception', { ascending: false });
 
-        const { data, error } = await query;
+        const { data, error } = await query.limit(200);
         if (error) {
             toast.error('Erreur lors du chargement des commandes labo');
             console.error(error);

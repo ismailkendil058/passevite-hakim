@@ -1,159 +1,135 @@
-# Replace Polling with Supabase Realtime Subscriptions
+# Plan: Merge Appointments and Completed Clients in the Patients Directory
 
-## Background
+Currently, the Patients directory on the `/rendezvous` page only shows patients who have recorded completed visits (`completed_clients` table). We will modify the code to combine the records from both the completed visits and the calendar appointments (`appointments` table) so that all patients appear in the list.
 
-The codebase currently has several pages that fetch Supabase data on mount but lack realtime subscriptions, meaning they won't reflect changes until the user manually navigates away and back. Other pages already use realtime subscriptions correctly. This plan adds realtime subscriptions to the pages that are missing them, and addresses one `setInterval` usage.
+## User Review Required
 
-## Current State Assessment
-
-### ✅ Already Using Realtime Correctly (No Changes Needed)
-| File | Tables Subscribed | Cleanup |
-|------|-------------------|---------|
-| [useQueue.ts](file:///c:/Users/admin/Desktop/passevite-dermadoc/src/hooks/useQueue.ts) | `queue_entries`, `sessions` | ✅ `removeChannel` on unmount |
-| [TV.tsx](file:///c:/Users/admin/Desktop/passevite-dermadoc/src/pages/TV.tsx) | `queue_entries`, `sessions` | ✅ `removeChannel` on unmount |
-| [Rendezvous.tsx](file:///c:/Users/admin/Desktop/passevite-dermadoc/src/pages/Rendezvous.tsx) | `appointments` | ✅ `removeChannel` on unmount |
-| [Client.tsx](file:///c:/Users/admin/Desktop/passevite-dermadoc/src/pages/Client.tsx) | `queue_entries` | ✅ `removeChannel` on unmount |
-| [Appointment.tsx](file:///c:/Users/admin/Desktop/passevite-dermadoc/src/pages/Appointment.tsx) | `website` | ✅ `removeChannel` on unmount |
-
-### ❌ Missing Realtime — Needs Subscriptions
-| File | Tables Fetched | Current Pattern |
-|------|---------------|-----------------|
-| [Manager.tsx](file:///c:/Users/admin/Desktop/passevite-dermadoc/src/pages/Manager.tsx) | `completed_clients`, `expenses` | Fetch on mount + date change only |
-| [MedecinDashboard.tsx](file:///c:/Users/admin/Desktop/passevite-dermadoc/src/pages/MedecinDashboard.tsx) | `prescriptions`, `appointments`, `completed_clients` | Fetch on mount only |
-| [Depenses.tsx](file:///c:/Users/admin/Desktop/passevite-dermadoc/src/pages/Depenses.tsx) | `expenses` | Fetch on mount + date change only |
-| [Factures.tsx](file:///c:/Users/admin/Desktop/passevite-dermadoc/src/pages/Factures.tsx) | `invoices` | Fetch on mount + date change only |
-| [Rendezvous.tsx](file:///c:/Users/admin/Desktop/passevite-dermadoc/src/pages/Rendezvous.tsx) | `completed_clients` | Fetched via `fetchClients()` on mount + search change, but **not** subscribed to realtime |
-
-### ⏰ `setInterval` (Not a Polling Issue)
-| File | Usage | Verdict |
-|------|-------|---------|
-| [TV.tsx](file:///c:/Users/admin/Desktop/passevite-dermadoc/src/pages/TV.tsx) L27 | `setInterval(() => setTime(new Date()), 1000)` for a live clock | **Keep as-is** — this is a UI clock, not a data fetch. Already has `clearInterval` cleanup. |
+> [!NOTE]
+> * Patients who only have appointments (and no completed visits) will display a status label: `Rendez-vous uniquement` (Appointment only) under their name.
+> * The "Dernière visite" column will display `Dernier RDV` with the date of their latest appointment if no completed visits exist.
 
 ---
 
 ## Proposed Changes
 
-### 1. Manager Dashboard
-#### [MODIFY] [Manager.tsx](file:///c:/Users/admin/Desktop/passevite-dermadoc/src/pages/Manager.tsx)
+### Rendez-vous Directory
 
-Add a realtime subscription in the existing `useEffect` to listen for changes to `completed_clients` and `expenses` tables. When changes occur, call the existing `fetchData()` function. Properly clean up with `removeChannel` on unmount.
-
-```typescript
-useEffect(() => {
-  fetchData();
-
-  const channel = supabase
-    .channel('manager-updates')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'completed_clients' }, () => fetchData())
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => fetchData())
-    .subscribe();
-
-  return () => { supabase.removeChannel(channel); };
-}, [dateFrom, dateTo]);
-```
-
----
-
-### 2. Medecin Dashboard
-#### [MODIFY] [MedecinDashboard.tsx](file:///c:/Users/admin/Desktop/passevite-dermadoc/src/pages/MedecinDashboard.tsx)
-
-Add a realtime subscription for `prescriptions`, `appointments`, and `completed_clients` tables. On any change, call `fetchDashboardData()`.
-
-```typescript
-useEffect(() => {
-  if (doctorInfo) {
-    fetchDashboardData();
-
-    const channel = supabase
-      .channel('medecin-dashboard-updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'prescriptions' }, () => fetchDashboardData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => fetchDashboardData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'completed_clients' }, () => fetchDashboardData())
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }
-}, [doctorInfo]);
-```
-
----
-
-### 3. Dépenses
-#### [MODIFY] [Depenses.tsx](file:///c:/Users/admin/Desktop/passevite-dermadoc/src/pages/Depenses.tsx)
-
-Add realtime subscription for the `expenses` table.
-
-```typescript
-useEffect(() => {
-  fetchExpenses();
-
-  const channel = supabase
-    .channel('expenses-updates')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => fetchExpenses())
-    .subscribe();
-
-  return () => { supabase.removeChannel(channel); };
-}, [dateFrom, dateTo]);
-```
-
----
-
-### 4. Factures
-#### [MODIFY] [Factures.tsx](file:///c:/Users/admin/Desktop/passevite-dermadoc/src/pages/Factures.tsx)
-
-Add realtime subscription for the `invoices` table.
-
-```typescript
-useEffect(() => {
-  fetchInvoices();
-
-  const channel = supabase
-    .channel('invoices-updates')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => fetchInvoices())
-    .subscribe();
-
-  return () => { supabase.removeChannel(channel); };
-}, [dateFrom, dateTo]);
-```
-
----
-
-### 5. Rendezvous — Add Missing `completed_clients` Subscription
 #### [MODIFY] [Rendezvous.tsx](file:///c:/Users/admin/Desktop/passevite-dermadoc/src/pages/Rendezvous.tsx)
+We will perform the following updates in `Rendezvous.tsx`:
+1. Add a `filteredAppointments` memo to filter the app's loaded appointments in memory using the search bar input.
+2. Update the `groupedPatients` memo to combine unique completed clients with search-filtered appointments, maintaining a clean deduplicated structure.
+3. Update the UI rendering of the patient cards to correctly handle cases where a patient has no completed visits (displaying `Rendez-vous uniquement` and `Dernier RDV` instead of falling back to today's date).
 
-The existing realtime subscription at L382-398 only watches `appointments`. Add `completed_clients` to the same channel so the patient list auto-updates when treatments are added/edited/deleted.
-
+##### 1. Define `filteredAppointments` and Update `groupedPatients` Memos
 ```typescript
-const channel = supabase
-  .channel('appointments-changes')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => fetchInitialData())
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'completed_clients' }, () => {
-    fetchInitialData();
-    fetchClients();
-  })
-  .subscribe();
+    // Filter appointments in memory by search query
+    const filteredAppointments = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+        if (!query) return appointments;
+        return appointments.filter(a =>
+            (a.client_name || '').toLowerCase().includes(query) ||
+            (a.client_phone || '').toLowerCase().includes(query)
+        );
+    }, [appointments, searchQuery]);
+
+    // Group by patient (phone + name) to build dossier entries with multiple treatments
+    const groupedPatients = useMemo(() => {
+        const map = new Map<string, { name: string; phone: string; treatments: Array<{ treatment: string; latest: CompletedClient; totalPaid: number }>; latestVisitDate?: string; latestApptDate?: string }>();
+        
+        // 1. Group completed clients
+        uniqueClients.forEach(c => {
+            const key = `${c.phone}_${c.client_name.toLowerCase().trim()}`;
+            const existing = map.get(key);
+            if (!existing) {
+                map.set(key, {
+                    name: c.client_name,
+                    phone: c.phone,
+                    treatments: [{ treatment: c.treatment || '—', latest: c, totalPaid: (c as any).totalPaid || 0 }],
+                    latestVisitDate: c.completed_at
+                });
+            } else {
+                existing.treatments.push({ treatment: c.treatment || '—', latest: c, totalPaid: (c as any).totalPaid || 0 });
+                if (!existing.latestVisitDate || new Date(c.completed_at) > new Date(existing.latestVisitDate)) {
+                    existing.latestVisitDate = c.completed_at;
+                }
+            }
+        });
+
+        // 2. Merge appointments
+        filteredAppointments.forEach(a => {
+            const key = `${a.client_phone}_${a.client_name.toLowerCase().trim()}`;
+            const existing = map.get(key);
+            if (!existing) {
+                map.set(key, {
+                    name: a.client_name,
+                    phone: a.client_phone,
+                    treatments: [],
+                    latestApptDate: a.appointment_at
+                });
+            } else {
+                if (!existing.latestApptDate || new Date(a.appointment_at) > new Date(existing.latestApptDate)) {
+                    existing.latestApptDate = a.appointment_at;
+                }
+            }
+        });
+
+        return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }, [uniqueClients, filteredAppointments]);
+```
+
+##### 2. Update Patient Card Rendering in the Directory
+```tsx
+                                    groupedPatients.map(patient => (
+                                        <Card key={`${patient.phone}_${patient.name}`} onClick={() => { setViewingPatient({ phone: patient.phone, name: patient.name }); setSelectedTreatment(null); }} className="cursor-pointer hover:border-primary/30 hover:bg-primary/[0.02] transition-all group">
+                                            <CardContent className="p-4 flex items-center justify-between">
+                                                <div className="space-y-1">
+                                                    <p className="font-bold text-foreground group-hover:text-primary transition-colors">{patient.name}</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {patient.phone}
+                                                        {patient.treatments.length > 0 && (
+                                                            <>
+                                                                {' · '}
+                                                                <span className="text-primary/70">{patient.treatments.map(t => t.treatment).slice(0, 2).join(', ')}</span>
+                                                            </>
+                                                        )}
+                                                        {patient.treatments.length === 0 && (
+                                                            <>
+                                                                {' · '}
+                                                                <span className="text-muted-foreground/60 italic">Rendez-vous uniquement</span>
+                                                            </>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="text-right hidden sm:block">
+                                                        <p className="text-[10px] text-muted-foreground uppercase font-medium">
+                                                            {patient.latestVisitDate ? 'Dernière visite' : 'Dernier RDV'}
+                                                        </p>
+                                                        <p className="text-xs font-semibold">
+                                                            {patient.latestVisitDate 
+                                                                ? format(parseISO(patient.latestVisitDate), 'dd/MM/yyyy') 
+                                                                : (patient.latestApptDate 
+                                                                    ? format(parseISO(patient.latestApptDate), 'dd/MM/yyyy') 
+                                                                    : '—')
+                                                            }
+                                                        </p>
+                                                    </div>
+                                                    <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))
 ```
 
 ---
-
-## Summary of Changes
-
-| File | What Changes | Tables Subscribed |
-|------|-------------|-------------------|
-| Manager.tsx | Add realtime channel in existing useEffect | `completed_clients`, `expenses` |
-| MedecinDashboard.tsx | Add realtime channel in existing useEffect | `prescriptions`, `appointments`, `completed_clients` |
-| Depenses.tsx | Add realtime channel in existing useEffect | `expenses` |
-| Factures.tsx | Add realtime channel in existing useEffect | `invoices` |
-| Rendezvous.tsx | Extend existing channel with `completed_clients` | `completed_clients` (added) |
-
-> [!NOTE]
-> The `setInterval` in TV.tsx's `LiveClock` component is **not** a data-fetching poll — it's a 1-second UI clock tick. It already has proper `clearInterval` cleanup. No change needed.
-
-> [!IMPORTANT]
-> All subscriptions reuse the existing `fetch*` functions, keeping the logic simple and consistent. Each subscription properly cleans up via `removeChannel` on unmount to prevent memory leaks.
 
 ## Verification Plan
 
+### Automated Tests
+- Run `npm run lint` to check for syntax and type issues.
+
 ### Manual Verification
-- Open each page, then use the Supabase dashboard or another browser tab to insert/update/delete records in the relevant tables and confirm the page updates in real-time without a manual refresh.
-- Navigate away from each page and back to ensure no "channel already subscribed" errors in console (verifying cleanup).
+1. Open the app locally using `npm run dev`.
+2. Go to `/rendezvous` -> Patients section.
+3. Verify that patients who only have appointments (and zero completed visits) now appear in the list with the tag `Rendez-vous uniquement`.
+4. Open their patient dossier and verify that their appointment history is loaded correctly.

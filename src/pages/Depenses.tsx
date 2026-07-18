@@ -46,10 +46,11 @@ const Depenses = () => {
 
         const { data, error } = await supabase
             .from('expenses')
-            .select('*')
+            .select('id, title, amount, date, category, created_at')
             .gte('date', dateFrom)
             .lte('date', dateTo)
-            .order('date', { ascending: false });
+            .order('date', { ascending: false })
+            .limit(200);
 
         if (error) {
             console.error('Error fetching expenses:', error);

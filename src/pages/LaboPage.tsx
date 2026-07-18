@@ -88,10 +88,7 @@ export default function LaboPage() {
             })
             .subscribe();
 
-        const intervalId = setInterval(() => fetchOrders(false), 500);
-
         return () => {
-            clearInterval(intervalId);
             supabase.removeChannel(channel);
         };
     }, [dateFrom, dateTo]);
@@ -112,12 +109,12 @@ export default function LaboPage() {
         // @ts-ignore
         let query = supabase
             .from('labo_orders')
-            .select('*')
+            .select('id, client_name, type_travail, teinte, laboratoire, n_fiche, date_reception, status, devis, versement')
             .gte('date_reception', dateFrom)
             .lte('date_reception', dateTo)
             .order('date_reception', { ascending: false });
 
-        const { data, error } = await query;
+        const { data, error } = await query.limit(200);
         if (error) {
             toast.error('Erreur lors du chargement des commandes labo');
             console.error(error);
