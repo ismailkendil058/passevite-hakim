@@ -127,8 +127,10 @@ create policy "Authenticated can update queue" on public.queue_entries for updat
 create policy "Authenticated can delete queue" on public.queue_entries for delete to authenticated using (true);
 
 -- RLS: completed_clients
-create policy "Authenticated can read completed" on public.completed_clients for select to authenticated using (true);
-create policy "Authenticated can insert completed" on public.completed_clients for insert to authenticated with check (true);
+create policy "Anyone can read completed" on public.completed_clients for select using (true);
+create policy "Anyone can insert completed" on public.completed_clients for insert with check (true);
+create policy "Anyone can update completed" on public.completed_clients for update using (true);
+create policy "Anyone can delete completed" on public.completed_clients for delete using (true);
 
 -- RLS: profiles
 create policy "Users can read own profile" on public.profiles for select to authenticated using (auth.uid() = id);

@@ -275,9 +275,11 @@ const MedecinDashboard = () => {
         enabled: !!selectedPatient,
         queryFn: async () => {
             const [appts, ords] = await Promise.all([
-                supabase.from('appointments').select('id, client_phone, client_name, appointment_at, doctor_id, status, state, notes, created_at, doctor:doctors(id, name, initial)').eq('client_phone', selectedPatient.phone).order('appointment_at', { ascending: false }).limit(200),
+                supabase.from('appointments').select('id, client_phone, client_name, appointment_at, doctor_id, status, notes, created_at, doctor:doctors(id, name, initial)').eq('client_phone', selectedPatient.phone).order('appointment_at', { ascending: false }).limit(200),
                 supabase.from('prescriptions').select('id, doctor_id, patient_name, prescription_date, medications, notes, created_at').eq('patient_name', selectedPatient.client_name).order('created_at', { ascending: false }).limit(200)
             ]);
+            if (appts.error) throw appts.error;
+            if (ords.error) throw ords.error;
             return { appointments: appts.data || [], ordonnances: ords.data || [] };
         }
     });
@@ -294,12 +296,13 @@ const MedecinDashboard = () => {
                 .limit(200);
             if (rxData) setPrescriptions(rxData);
 
-            const { data: aptData } = await supabase
+            const { data: aptData, error: aptError } = await supabase
                 .from('appointments')
-                .select('id, doctor_id, client_phone, client_name, appointment_at, status, state, notes, created_at')
+                .select('id, doctor_id, client_phone, client_name, appointment_at, status, notes, created_at')
                 .eq('doctor_id', doctorInfo.id)
                 .order('appointment_at', { ascending: false })
                 .limit(200);
+            if (aptError) throw aptError;
             if (aptData) setAppointments(aptData);
 
             const { data: clientData } = await supabase

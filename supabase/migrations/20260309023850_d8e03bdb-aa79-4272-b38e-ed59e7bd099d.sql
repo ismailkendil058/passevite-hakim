@@ -23,6 +23,8 @@ create policy "Receptionist can update queue" on public.queue_entries for update
 create policy "Receptionist can delete queue" on public.queue_entries for delete to authenticated
   using (public.has_role(auth.uid(), 'receptionist') or public.has_role(auth.uid(), 'manager'));
 
--- Completed: only receptionist can insert
-create policy "Receptionist can insert completed" on public.completed_clients for insert to authenticated
-  with check (public.has_role(auth.uid(), 'receptionist') or public.has_role(auth.uid(), 'manager'));
+-- Completed: public access for completed_clients
+create policy "Anyone can read completed" on public.completed_clients for select using (true);
+create policy "Anyone can insert completed" on public.completed_clients for insert with check (true);
+create policy "Anyone can update completed" on public.completed_clients for update using (true);
+create policy "Anyone can delete completed" on public.completed_clients for delete using (true);

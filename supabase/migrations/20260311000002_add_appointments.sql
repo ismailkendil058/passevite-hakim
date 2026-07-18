@@ -15,11 +15,11 @@ CREATE TABLE IF NOT EXISTS public.appointments (
 ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
 
 -- Policies
-CREATE POLICY "Allows authenticated users to manage appointments" 
+CREATE POLICY "Anyone can manage appointments" 
 ON public.appointments FOR ALL 
-TO authenticated 
 USING (true) 
 WITH CHECK (true);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.appointments TO anon;
 
 -- Index for performance
 CREATE INDEX IF NOT EXISTS idx_appointments_phone ON public.appointments(client_phone);
