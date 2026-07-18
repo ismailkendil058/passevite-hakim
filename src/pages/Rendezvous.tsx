@@ -137,9 +137,8 @@ const Rendezvous = () => {
             // Fetch Appointments
             const { data: apptsData } = await supabase
                 .from('appointments')
-                .select('id, client_phone, client_name, appointment_at, doctor_id, client_id, status, state, notes, created_at, doctor:doctors(id, name, initial)')
-                .order('appointment_at', { ascending: true })
-                .limit(200);
+                .select('id, client_phone, client_name, appointment_at, doctor_id, status, notes, created_at, doctor:doctors(id, name, initial)')
+                .order('appointment_at', { ascending: true });
 
             // Fetch Doctors
             const { data: docsData } = await supabase
