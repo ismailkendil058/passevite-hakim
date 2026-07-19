@@ -173,14 +173,33 @@ const Accueil = () => {
       start.setHours(0, 0, 0, 0);
       const nextStart = new Date(start);
       nextStart.setDate(nextStart.getDate() + 1);
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('completed_clients')
-        .select('id, client_name, phone, client_id, treatment, total_amount, tranche_paid, state, doctor_id, completed_at, doctor:doctors(name)')
+        .select('id, client_name, phone, client_id, treatment, total_amount, tranche_paid, state, doctor_id, completed_at')
         .gte('completed_at', start.toISOString())
         .lt('completed_at', nextStart.toISOString())
         .order('completed_at', { ascending: false })
         .limit(200);
-      setTodayClients(data || []);
+
+      if (error) {
+        console.error('Error fetching today clients:', error);
+        setTodayClients([]);
+        return;
+      }
+
+      // Fetch doctors to map names
+      const { data: doctorsData } = await supabase
+        .from('doctors')
+        .select('id, name');
+
+      const doctorsMap = new Map((doctorsData || []).map((d: any) => [d.id, d.name]));
+
+      const enriched = (data || []).map((c: any) => ({
+        ...c,
+        doctor: { name: doctorsMap.get(c.doctor_id) || '—' },
+      }));
+
+      setTodayClients(enriched);
     } catch (err) {
       console.error('Error fetching today clients', err);
       setTodayClients([]);

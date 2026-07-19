@@ -319,24 +319,20 @@ export function useQueue() {
     if (insertError) {
       // Log the full error for debugging - check console to see the actual error structure
       console.error('Insert error details:', {
-        code: insertError.code,
+        code: (insertError as any).code,
         message: insertError.message,
         details: insertError.details,
         hint: insertError.hint,
-        statusCode: insertError.statusCode,
         name: insertError.name
       });
 
-      const errorText = `${insertError.code ?? ''} ${insertError.message ?? ''} ${insertError.details ?? ''} ${insertError.hint ?? ''}`.toLowerCase();
+      const errorText = `${(insertError as any).code ?? ''} ${insertError.message ?? ''} ${insertError.details ?? ''} ${insertError.hint ?? ''}`.toLowerCase();
       
       // Check multiple indicators of a duplicate/conflict error
-      const isDuplicateError = insertError.code === '23505' 
-        || insertError.status === 409
-        || insertError.statusCode === 409
+      const isDuplicateError = (insertError as any).code === '23505' 
         || errorText.includes('duplicate')
         || errorText.includes('unique')
         || errorText.includes('conflict')
-        || errorText.includes('409')
         || isQueueEntryCompletionConflict(insertError);
 
       if (isDuplicateError) {
@@ -371,7 +367,7 @@ export function useQueue() {
     return stats;
   };
 
-  const updateClient = async (entryId: string, updates: { phone?: string; state?: 'U' | 'N' | 'R'; doctor_id?: string; patient_name?: string }) => {
+  const updateClient = async (entryId: string, updates: { phone?: string; state?: 'U' | 'N' | 'R'; doctor_id?: string; patient_name?: string; status?: string }) => {
     // Ensure we handle potential column name differences (patient_name vs client_name)
     const payload: any = { ...updates };
     if (updates.patient_name) {
