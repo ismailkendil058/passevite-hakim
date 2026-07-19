@@ -166,7 +166,7 @@ const MedecinDashboard = () => {
         try {
             const { data, error } = await supabase
                 .from('medications')
-                .select('id, name, dosage, default_dosage, default_duration, default_frequency_count, default_frequency_unit, default_timing, variants')
+                .select('id, name, default_dosage, default_duration, default_frequency_count, default_frequency_unit, default_timing, variants')
                 .order('name');
             if (error) throw error;
             if (data) {
@@ -694,7 +694,7 @@ const MedecinDashboard = () => {
         // @ts-ignore
         let query = supabase
             .from('labo_orders')
-            .select('id, doctor_id, client_name, type_travail, teinte, laboratoire, n_fiche, date_reception, status, devis, versement')
+            .select('id, doctor_id, client_name, type_travail, teinte, date_reception, status, devis, versement')
             .eq('doctor_id', doctorInfo.id)
             .gte('date_reception', dateFrom)
             .lte('date_reception', dateTo)

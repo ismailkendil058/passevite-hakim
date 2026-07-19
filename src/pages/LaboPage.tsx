@@ -109,7 +109,7 @@ export default function LaboPage() {
         // @ts-ignore
         let query = supabase
             .from('labo_orders')
-            .select('id, client_name, type_travail, teinte, laboratoire, n_fiche, date_reception, status, devis, versement')
+            .select('id, client_name, type_travail, teinte, date_reception, status, devis, versement')
             .gte('date_reception', dateFrom)
             .lte('date_reception', dateTo)
             .order('date_reception', { ascending: false });
