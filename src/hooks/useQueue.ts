@@ -93,9 +93,34 @@ export function useQueue() {
     });
   };
 
+  // Cleanup stale queue_entries on startup: delete entries with status 'completed'
+  // or entries from past days that are no longer relevant. This prevents the
+  // "phone already in queue" error caused by orphaned rows.
+  const cleanupStaleEntries = useCallback(async () => {
+    try {
+      // 1. Delete all entries with status 'completed' (they should have been deleted)
+      await supabase.from('queue_entries').delete().eq('status', 'completed');
+
+      // 2. Delete entries from past days that are still 'waiting' or 'in_cabinet'
+      //    (leftover from previous sessions that weren't properly closed)
+      const todayStart = startOfDay(new Date()).toISOString();
+      await supabase
+        .from('queue_entries')
+        .delete()
+        .lt('created_at', todayStart)
+        .in('status', ['waiting', 'in_cabinet']);
+    } catch (err) {
+      console.error('Error cleaning up stale queue entries:', err);
+    }
+  }, []);
+
   useEffect(() => {
     const init = async () => {
       setLoading(true);
+
+      // Clean up stale entries before fetching
+      await cleanupStaleEntries();
+
       // Batch initial fetches
       const docRes = await supabase.from('doctors').select('*');
 
@@ -123,7 +148,7 @@ export function useQueue() {
       setLoading(false);
     };
     init();
-  }, [fetchEntries, fetchInCabinetEntries]);
+  }, [fetchEntries, fetchInCabinetEntries, cleanupStaleEntries]);
 
   // Combined Real-time subscription
   useEffect(() => {
@@ -170,6 +195,25 @@ export function useQueue() {
   const addClient = async (phone: string, state: 'U' | 'N' | 'R', doctorId: string, patientName?: string, appointmentId?: string) => {
     const doctor = doctors.find(d => d.id === doctorId);
     if (!doctor) return { error: new Error('Equipe introuvable') };
+
+    // Proactively clean up any stale/orphaned queue_entries for this phone
+    // This prevents the unique constraint violation when a client was previously
+    // completed but their queue_entry was not properly deleted.
+    const trimmedPhone = phone.trim();
+    try {
+      // Delete entries with status 'completed' for this phone
+      await supabase.from('queue_entries').delete()
+        .eq('phone', trimmedPhone)
+        .eq('status', 'completed');
+
+      // Delete entries from past days for this phone
+      const todayStartCleanup = startOfDay(new Date()).toISOString();
+      await supabase.from('queue_entries').delete()
+        .eq('phone', trimmedPhone)
+        .lt('created_at', todayStartCleanup);
+    } catch (err) {
+      console.error('Error cleaning stale entries for phone:', err);
+    }
 
     // Fetch active session (optional — queue works without one)
     const { data: sessionData } = await supabase
@@ -219,10 +263,10 @@ export function useQueue() {
     const clientId = `${state}${nextNumber}${doctor.initial}`;
     const position = entries.length + 1;
 
-    const nameValue = patientName?.trim() || phone.trim();
+    const nameValue = patientName?.trim() || trimmedPhone;
 
     const insertPayload: Record<string, unknown> = {
-      phone: phone.trim(),
+      phone: trimmedPhone,
       state,
       doctor_id: doctorId,
       state_number: nextNumber,

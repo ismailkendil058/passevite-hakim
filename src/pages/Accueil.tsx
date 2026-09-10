@@ -577,20 +577,20 @@ const Accueil = () => {
     }
   };
 
-    const handleReturnToQueue = async () => {
-      if (!selectedEntry) return;
-      try {
-        const { error } = await updateClient(selectedEntry.id, { status: 'waiting' as any });
-        if (error) {
-          toast.error('Erreur lors du retour à la file');
-          return;
-        }
-        toast.success('Patient renvoyé à la file d\'attente');
-        setShowCompleteModal(false);
-      } catch (err) {
+  const handleReturnToQueue = async () => {
+    if (!selectedEntry) return;
+    try {
+      const { error } = await updateClient(selectedEntry.id, { status: 'waiting' as any });
+      if (error) {
         toast.error('Erreur lors du retour à la file');
+        return;
       }
-    };
+      toast.success('Patient renvoyé à la file d\'attente');
+      setShowCompleteModal(false);
+    } catch (err) {
+      toast.error('Erreur lors du retour à la file');
+    }
+  };
 
   const handleEdit = (entry: QueueEntry) => {
     setEditEntry(entry);
