@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import QrStickerModal from '@/components/QrStickerModal';
 import QrScannerModal from '@/components/QrScannerModal';
-import { format, addHours, isWithinInterval, startOfDay, endOfDay, parseISO, startOfToday, endOfToday } from 'date-fns';
+import { format, parseISO, addHours, isWithinInterval } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -134,18 +134,28 @@ const Rendezvous = () => {
         if (showLoading) setLoading(true);
         try {
             await fetchActiveSession();
-            // Fetch Appointments
-            const { data: apptsData } = await supabase
+            // Fetch Appointments — filter from 90 days ago to avoid Supabase's 1000-row default limit
+            // cutting off today's appointments when there's a large historical backlog
+            const ninetyDaysAgo = new Date();
+            ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+            const { data: apptsData, error: apptsError } = await supabase
                 .from('appointments')
                 .select('id, client_phone, client_name, appointment_at, doctor_id, status, notes, created_at, doctor:doctors(id, name, initial)')
+                .gte('appointment_at', ninetyDaysAgo.toISOString())
                 .order('appointment_at', { ascending: true });
+
+            if (apptsError) {
+                console.error('[Rendezvous] Appointments fetch error:', apptsError);
+            }
 
             // Fetch Doctors
             const { data: docsData } = await supabase
                 .from('doctors')
                 .select('id, name, initial');
 
-            if (apptsData) setAppointments(apptsData as any);
+            if (apptsData) {
+                setAppointments(apptsData as any);
+            }
             if (docsData) {
                 setDoctors(docsData as any);
                 if (docsData.length > 0 && window.innerWidth < 640) {
@@ -568,7 +578,8 @@ const Rendezvous = () => {
     const parsedAppointments = useMemo(() => {
         return appointments.map(a => ({
             ...a,
-            startOfDayTime: startOfDay(parseISO(a.appointment_at)).getTime()
+            // Use string-based day key to avoid UTC/local midnight boundary issues
+            dayKey: format(parseISO(a.appointment_at), 'yyyy-MM-dd')
         }));
     }, [appointments]);
 
@@ -578,8 +589,8 @@ const Rendezvous = () => {
         return parsedAppointments.filter(a => {
             const apptDate = parseISO(a.appointment_at);
             const isWithin24h = isWithinInterval(apptDate, { start: now, end: next24h });
-            return isWithin24h && (a.status === 'scheduled' || a.status === 'confirmed');
-        });
+            return isWithin24h && a.status !== 'denied' && a.status !== 'attended';
+        }).sort((a, b) => new Date(a.appointment_at).getTime() - new Date(b.appointment_at).getTime());
     }, [parsedAppointments]);
 
     const handleUpdateStatus = async (id: string, status: Appointment['status']) => {
@@ -1473,7 +1484,7 @@ L'équipe de CD Dental Clinic.`;
                                         <div className="flex justify-between items-center text-primary-foreground/80">
                                             <span className="text-sm">Total RDV</span>
                                             <span className="text-xl font-black">
-                                                {parsedAppointments.filter(a => a.startOfDayTime === startOfDay(newApptDate || new Date()).getTime()).length}
+                                                {parsedAppointments.filter(a => a.dayKey === format(newApptDate || new Date(), 'yyyy-MM-dd')).length}
                                             </span>
                                         </div>
                                         <div className="h-px bg-white/20" />
@@ -1570,11 +1581,11 @@ L'équipe de CD Dental Clinic.`;
                                                                 {/* Appointments for this doctor */}
                                                                 <div className="relative h-full pt-10">
                                                                     {(() => {
-                                                                        const dayStart = startOfDay(newApptDate || new Date()).getTime();
+                                                                        const selectedDayKey = format(newApptDate || new Date(), 'yyyy-MM-dd');
                                                                         const filteredAppts = parsedAppointments.filter(a =>
                                                                             a.status !== 'denied' &&
                                                                             a.doctor_id === doctor.id &&
-                                                                            a.startOfDayTime === dayStart
+                                                                            a.dayKey === selectedDayKey
                                                                         );
 
                                                                         // Group by hour
