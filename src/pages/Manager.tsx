@@ -47,27 +47,38 @@ const Manager = () => {
     const toDate = new Date(dateTo);
     toDate.setHours(23, 59, 59, 999);
 
-    const { data } = await supabase
-      .from('completed_clients')
-      .select('*, doctor:doctors(*)')
-      .gte('completed_at', fromDate.toISOString())
-      .lte('completed_at', toDate.toISOString())
-      .order('completed_at', { ascending: false });
+    const [{ data: clientsData }, { data: doctorsData }] = await Promise.all([
+      supabase
+        .from('completed_clients')
+        .select('id, client_name, phone, client_id, treatment, total_amount, tranche_paid, completed_at, state, receptionist_id, doctor_id')
+        .gte('completed_at', fromDate.toISOString())
+        .lte('completed_at', toDate.toISOString())
+        .order('completed_at', { ascending: false }),
+      supabase.from('doctors').select('id, name'),
+    ]);
 
-    if (data) {
-      const uniqueIds = [...new Set(data.map(d => d.receptionist_id).filter(Boolean))];
+    const doctorMap = new Map((doctorsData ?? []).map((d) => [d.id, d.name]));
+
+    if (clientsData) {
+      const uniqueIds = [...new Set(clientsData.map((d) => d.receptionist_id).filter(Boolean))];
       const { data: roles } = await supabase
         .from('roles')
         .select('id, username')
         .in('id', uniqueIds);
 
-      const roleMap = new Map(roles?.map(r => [r.id, r.username]) || []);
+      const roleMap = new Map(roles?.map((r) => [r.id, r.username]) || []);
 
-      setClients(data.map(c => ({
-        ...c,
-        doctor: c.doctor as any,
-        receptionist_name: c.receptionist_id ? (roleMap.get(c.receptionist_id) || '—') : '—',
-      })));
+      setClients(
+        clientsData.map((c) => ({
+          ...c,
+          doctor: doctorMap.has(c.doctor_id) ? { name: doctorMap.get(c.doctor_id), initial: '' } : null,
+          receptionist_name: c.receptionist_id ? (roleMap.get(c.receptionist_id) || '—') : '—',
+        }))
+      );
+    }
+
+    if (doctorsData) {
+      setDoctors(doctorsData.map((d) => ({ id: d.id, name: d.name })));
     }
 
     const { data: expData } = await supabase
@@ -83,11 +94,19 @@ const Manager = () => {
 
   };
 
+
+
   useEffect(() => {
-    supabase.from('doctors').select('id, name').then(({ data }) => {
-      if (data) setDoctors(data);
-    });
-  }, []);
+    fetchData();
+
+    const channel = supabase
+      .channel('manager-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'completed_clients' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => fetchData())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [dateFrom, dateTo]);
 
   useEffect(() => {
     fetchData();
